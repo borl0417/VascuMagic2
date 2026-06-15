@@ -1848,8 +1848,8 @@ function updatePETCTOutput() {
   else                  escScore += 2;
 
   // Pattern
-  if (pattern === 'none' || pattern === 'diffuse')       stopScore += 2;
-  else if (pattern === 'focal_mild')                      contScore += 2;
+  if (pattern === 'none' || pattern === 'diffuse'){stopScore += 2;}
+  else if (pattern === 'focal_mild'){contScore += 2;}
   else if (pattern === 'focal')                           contScore += 1; escScore += 1;
   else if (pattern === 'focal_abscess')                   escScore += 3;
 
