@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VascuMAGIC+ | Aortic Graft Infection Decision Support</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  :root {
+    --gray-50: #f8f9fa;
+    --gray-100: #f1f3f5;
+    --gray-200: #e9ecef;
+    --gray-300: #dee2e6;
+    --gray-400: #ced4da;
+    --gray-500: #adb5bd;
+    --gray-600: #6c757d;
+    --gray-700: #495057;
+    --gray-800: #343a40;
+    --gray-900: #212529;
+    --blue-600: #0d6efd;
+    --blue-700: #0b5ed7;
+    --red-600: #dc2626;
+    --red-700: #b91c1c;
+    --amber-600: #d97706;
+    --green-600: #16a34a;
+    --teal-600: #0d9488;
+    
+    --sidebar-width: 280px;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+  }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', 'Roboto', system-ui, sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-800);
+    line-height: 1.5;
+    font-size: 14px;
+  }
+
+  /* Layout */
+  .app {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* Sidebar - Clinical dashboard style */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--gray-900);
+    color: var(--gray-400);
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--gray-800);
+  }
+
+  .sidebar-header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    letter-spacing: -0.2px;
+  }
+
+  .sidebar-header p {
+    font-size: 11px;
+    color: var(--gray-600);
+    margin-top: 4px;
+    font-weight: 400;
+  }
+
+  .sidebar-section {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gray-800);
+  }
+
+  .sidebar-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-600);
+    margin-bottom: 12px;
+  }
+
+  .patient-status {
+    background: rgba(255,255,255,0.05);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .patient-status-clear {
+    background: rgba(22, 163, 74, 0.15);
+    color: #86efac;
+  }
+
+  .patient-status-suspect {
+    background: rgba(217, 119, 6, 0.15);
+    color: #fcd34d;
+  }
+
+  .patient-status-infected {
+    background: rgba(220, 38, 38, 0.15);
+    color: #fca5a5;
+  }
+
+  .patient-status-none {
+    background: rgba(108, 117, 125, 0.2);
+    color: var(--gray-500);
+  }
+
+  .crp-trend {
+    margin-top: 12px;
+  }
+
+  .crp-bars {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+    height: 36px;
+    margin-top: 8px;
+  }
+
+  .crp-bar {
+    flex: 1;
+    background: var(--gray-700);
+    border-radius: 2px;
+    min-width: 4px;
+    transition: height 0.2s;
+  }
+
+  .crp-bar-high { background: var(--red-600); }
+  .crp-bar-mid { background: var(--amber-600); }
+  .crp-bar-low { background: var(--green-600); }
+
+  .sidebar-nav-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--gray-400);
+    font-size: 12px;
+    padding: 8px 0;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.15s;
+  }
+
+  .sidebar-nav-item:hover {
+    color: white;
+  }
+
+  .sidebar-nav-item:first-of-type {
+    margin-top: 0;
+  }
+
+  .timeline-list {
+    list-style: none;
+  }
+
+  .timeline-list li {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 12px;
+    border-bottom: 1px solid var(--gray-800);
+  }
+
+  .timeline-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .timeline-dot-red { background: var(--red-600); }
+  .timeline-dot-amber { background: var(--amber-600); }
+  .timeline-dot-green { background: var(--green-600); }
+  .timeline-dot-blue { background: var(--blue-600); }
+  .timeline-dot-gray { background: var(--gray-600); }
+
+  .timeline-text {
+    flex: 1;
+  }
+
+  .timeline-title {
+    font-weight: 500;
+    color: var(--gray-300);
+  }
+
+  .timeline-sub {
+    font-size: 10px;
+    color: var(--gray-600);
+    margin-top: 2px;
+  }
+
+  /* Main content */
+  .main {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: white;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .breadcrumb {
+    font-size: 13px;
+    color: var(--gray-600);
+  }
+
+  .breadcrumb-current {
+    color: var(--gray-800);
+    font-weight: 500;
+  }
+
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .content {
+    padding: 32px 40px;
+    max-width: 900px;
+  }
+
+  /* Screens */
+  .screen {
+    display: none;
+  }
+
+  .screen.active {
+    display: block;
+  }
+
+  /* Typography */
+  .page-title {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+    color: var(--gray-600);
+    margin-bottom: 28px;
+    border-left: 3px solid var(--blue-600);
+    padding-left: 12px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--gray-800);
+  }
+
+  /* Cards */
+  .card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 16px 20px 8px 20px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--gray-500);
+  }
+
+  .card-body {
+    padding: 20px;
+  }
+
+  /* Alert variants */
+  .alert {
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    margin-bottom: 16px;
+    border-left: 3px solid;
+  }
+
+  .alert-danger {
+    background: #fef2f2;
+    color: var(--red-700);
+    border-left-color: var(--red-600);
+  }
+
+  .alert-warning {
+    background: #fffbeb;
+    color: var(--amber-600);
+    border-left-color: var(--amber-600);
+  }
+
+  .alert-info {
+    background: #eff6ff;
+    color: var(--blue-700);
+    border-left-color: var(--blue-600);
+  }
+
+  .alert-success {
+    background: #f0fdf4;
+    color: var(--green-600);
+    border-left-color: var(--green-600);
+  }
+
+  .alert-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  /* Question blocks */
+  .question-block {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-500);
+    margin-bottom: 6px;
+  }
+
+  .question-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--gray-800);
+    margin-bottom: 4px;
+  }
+
+  .question-hint {
+    font-size: 12px;
+    color: var(--gray-600);
+    margin-bottom: 14px;
+  }
+
+  .question-cite {
+    font-size: 11px;
+    color: var(--gray-500);
+    margin-top: 12px;
+    font-style: italic;
+  }
+
+  /* Buttons */
+  .btn-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--blue-600);
+    color: white;
+    border-color: var(--blue-600);
+  }
+
+  .btn-primary:hover {
+    background: var(--blue-700);
+  }
+
+  .btn-danger {
+    background: #fef2f2;
+    color: var(--red-700);
+    border-color: #fecaca;
+  }
+
+  .btn-danger:hover {
+    background: #fee2e2;
+  }
+
+  .btn-danger.selected {
+    background: var(--red-600);
+    color: white;
+    border-color: var(--red-600);
+  }
+
+  .btn-success {
+    background: #f0fdf4;
+    color: var(--green-600);
+    border-color: #bbf7d0;
+  }
+
+  .btn-success:hover {
+    background: #dcfce7;
+  }
+
+  .btn-success.selected {
+    background: var(--green-600);
+    color: white;
+    border-color: var(--green-600);
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--gray-700);
+    border-color: var(--gray-300);
+  }
+
+  .btn-outline:hover {
+    background: var(--gray-100);
+  }
+
+  .btn-nav {
+    background: var(--gray-800);
+    color: white;
+    border: none;
+    padding: 9px 20px;
+  }
+
+  .btn-nav:hover {
+    background: var(--gray-900);
+  }
+
+  /* Form elements */
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-700);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  input[type="number"],
+  input[type="date"],
+  select {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 12px;
+    border: 1.5px solid var(--gray-300);
+    border-radius: var(--radius-sm);
+    background: white;
+    width: 100%;
+    max-width: 280px;
+    transition: border-color 0.15s;
+  }
+
+  input:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--blue-600);
+  }
+
+  .input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .input-unit {
+    font-size: 13px;
+    color: var(--gray-600);
+  }
+
+  /* Output panels */
+  .output-panel {
+    background: var(--gray-900);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin: 20px 0;
+    color: var(--gray-300);
+  }
+
+  .output-panel h3 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gray-600);
+    margin-bottom: 16px;
+  }
+
+  .output-row {
+    display: flex;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .output-label {
+    font-size: 12px;
+    color: var(--gray-500);
+    min-width: 120px;
+  }
+
+  .output-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-200);
+  }
+
+  .output-value-success { color: #86efac; }
+  .output-value-warning { color: #fcd34d; }
+  .output-value-danger { color: #fca5a5; }
+
+  /* Duration meter */
+  .duration-meter {
+    text-align: center;
+    padding: 16px 0;
+  }
+
+  .duration-weeks {
+    font-size: 56px;
+    font-weight: 600;
+    color: white;
+    line-height: 1;
+  }
+
+  .duration-label {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 4px;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    margin: 16px 0 8px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #60a5fa, #34d399);
+    width: 0%;
+    transition: width 0.4s;
+  }
+
+  /* Phase chips */
+  .phase-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .phase-chip {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.08);
+    color: var(--gray-400);
+  }
+
+  .phase-chip-active {
+    background: rgba(96, 165, 250, 0.2);
+    color: #93c5fd;
+  }
+
+  /* PET/CT meter */
+  .petct-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+
+  .petct-zone {
+    padding: 14px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    border: 2px solid transparent;
+  }
+
+  .petct-zone-stop.active { border-color: var(--green-600); background: rgba(34,197,94,0.1); }
+  .petct-zone-cont.active { border-color: var(--amber-600); background: rgba(245,158,11,0.1); }
+  .petct-zone-esc.active { border-color: var(--red-600); background: rgba(239,68,68,0.1); }
+
+  .petct-zone-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .petct-threshold {
+    font-size: 10px;
+    color: var(--gray-500);
+    line-height: 1.4;
+  }
+
+  .petct-suv {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--gray-200);
+    margin: 8px 0 4px;
+  }
+
+  /* Navigation bar */
+  .nav-bar {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--gray-200);
+    align-items: center;
+  }
+
+  .nav-spacer {
+    flex: 1;
+  }
+
+  .nav-progress {
+    font-size: 12px;
+    color: var(--gray-500);
+  }
+
+  /* Welcome grid */
+  .welcome-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin: 20px 0;
+  }
+
+  .welcome-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .welcome-card:hover {
+    border-color: var(--blue-600);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+
+  .welcome-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 6px;
+  }
+
+  .welcome-card-desc {
+    font-size: 12px;
+    color: var(--gray-600);
+    line-height: 1.5;
+  }
+
+  /* Timeline */
+  .timeline-entry {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  .timeline-track {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 24px;
+    flex-shrink: 0;
+  }
+
+  .timeline-track-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 6px;
+  }
+
+  .timeline-track-line {
+    width: 2px;
+    flex: 1;
+    background: var(--gray-300);
+    margin: 6px 0;
+    min-height: 24px;
+  }
+
+  .timeline-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    flex: 1;
+  }
+
+  .timeline-card-urgent { border-left: 3px solid var(--red-600); }
+  .timeline-card-due { border-left: 3px solid var(--amber-600); }
+  .timeline-card-upcoming { border-left: 3px solid var(--gray-400); }
+
+  .timeline-date {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .timeline-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 8px;
+  }
+
+  .timeline-items {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .timeline-items li {
+    font-size: 12px;
+    color: var(--gray-700);
+    margin-bottom: 4px;
+    padding-left: 14px;
+    position: relative;
+  }
+
+  .timeline-items li::before {
+    content: "—";
+    position: absolute;
+    left: 0;
+    color: var(--gray-400);
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+  }
+
+  .info-cell {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+  }
+
+  .info-cell-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    letter-spacing: 0.3px;
+  }
+
+  .info-cell-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-top: 4px;
+  }
+
+  /* Utility */
+  .hidden {
+    display: none !important;
+  }
+
+  .mt-2 { margin-top: 8px; }
+  .mt-3 { margin-top: 12px; }
+  .mt-4 { margin-top: 16px; }
+  .mb-2 { margin-bottom: 8px; }
+  .mb-3 { margin-bottom: 12px; }
+  .mb-4 { margin-bottom: 16px; }
+  .text-small { font-size: 11px; }
+  .text-muted { color: var(--gray-500); }
+
+  /* Mobile */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 90;
+  }
+
+  @media (max-width: 768px) {
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.2s;
+    }
+    .sidebar.open {
+      transform: translateX(0);
+    }
+    .main {
+      margin-left: 0;
+    }
+    .menu-toggle {
+      display: block;
+    }
+    .sidebar-overlay.open {
+      display: block;
+    }
+    .content {
+      padding: 20px 16px;
+    }
+    .welcome-grid {
+      grid-template-columns: 1fr;
+    }
+    .petct-grid {
+      grid-template-columns: 1fr;
+    }
+    .info-grid {
+      grid-template-columns: 1fr;
+    }
+    .page-title {
+      font-size: 24px;
+    }
+  }
+
+  @media print {
+    .sidebar, .topbar, .nav-bar, .btn, .btn-group {
+      display: none;
+    }
+    .main {
+      margin-left: 0;
+    }
+    .content {
+      padding: 0;
+    }
+    .card, .question-block {
+      break-inside: avoid;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h1>VascuMAGIC+</h1>
+    <p>Aortic Graft Infection<br>Decision Support</p>
+  </div>
+
+  <div id="patient-status" class="sidebar-section">
+    <div id="status-badge" class="patient-status patient-status-none">No active case</div>
+    
+    <div id="crp-container" class="crp-trend hidden">
+      <div class="text-small text-muted">CRP trend</div>
+      <div class="crp-bars" id="crp-bars"></div>
+    </div>
+  </div>
+
+  <div id="abx-container" class="sidebar-section hidden">
+    <div class="sidebar-section-title">Antibiotic plan</div>
+    <div id="abx-info" class="text-small" style="color: var(--gray-400);"></div>
+  </div>
+
+  <div id="jump-container" class="sidebar-section hidden">
+    <div class="sidebar-section-title">Quick navigation</div>
+    <button class="sidebar-nav-item" onclick="goTo('m0')">New case</button>
+    <button id="jump-triage" class="sidebar-nav-item hidden" onclick="goTo('m1')">Emergency triage</button>
+    <button id="jump-petct" class="sidebar-nav-item hidden" onclick="goTo('m4')">PET/CT guidance</button>
+    <button id="jump-fu" class="sidebar-nav-item" onclick="goTo('m5')">Follow-up schedule</button>
+    <button id="jump-abx" class="sidebar-nav-item hidden" onclick="goTo('m3')">Antibiotic duration</button>
+  </div>
+
+  <div id="timeline-container" class="sidebar-section hidden">
+    <div class="sidebar-section-title">Key milestones</div>
+    <ul class="timeline-list" id="sidebar-timeline"></ul>
+  </div>
+
+  <div class="sidebar-section" style="margin-top: auto;">
+    <div class="sidebar-section-title">References</div>
+    <div style="font-size: 10px; line-height: 1.5; color: var(--gray-600);">
+      Lyons et al. EJVES 2026<br>
+      Husmann et al. EJNMMI 2018<br>
+      Kouijzer et al. CMI 2025
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-toggle" onclick="toggleSidebar()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 6h18M3 12h18M3 18h18"/>
+      </svg>
+    </button>
+    <div class="breadcrumb">
+      <span id="bc-current">Welcome</span>
+    </div>
+    <div class="text-small text-muted">Clinical decision support</div>
+  </div>
+
+  <div class="content">
+    <!-- Welcome Screen -->
+    <div id="screen-welcome" class="screen active" data-screen="welcome">
+      <h1 class="page-title">VascuMAGIC+</h1>
+      <div class="page-subtitle">Evidence-based management for aortic graft infection</div>
+
+      <div class="alert alert-warning">
+        <div class="alert-title">Clinical decision support only</div>
+        <div>This tool supports MDT decision-making and does not replace clinical judgement. All major treatment changes require formal MDT review.</div>
+      </div>
+
+      <div class="welcome-grid">
+        <div class="welcome-card" onclick="goTo('m0')">
+          <div class="welcome-card-title">New patient assessment</div>
+          <div class="welcome-card-desc">Enter VascuMAGIC diagnostic criteria and begin the management pathway.</div>
+        </div>
+        <div class="welcome-card" onclick="goTo('m5')">
+          <div class="welcome-card-title">Follow-up schedule</div>
+          <div class="welcome-card-desc">Generate monitoring timeline based on diagnostic category.</div>
+        </div>
+        <div class="welcome-card" onclick="goTo('m4')">
+          <div class="welcome-card-title">PET/CT interpretation</div>
+          <div class="welcome-card-desc">Stop/continue/escalate guidance based on VASGRA cohort data.</div>
+        </div>
+        <div class="welcome-card" onclick="document.getElementById('about-panel').classList.toggle('hidden')">
+          <div class="welcome-card-title">Evidence summary</div>
+          <div class="welcome-card-desc">Review the source literature and key findings.</div>
+        </div>
+      </div>
+
+      <div id="about-panel" class="hidden">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Source literature</div></div>
+          <div class="card-body">
+            <div style="margin-bottom: 16px;">
+              <strong>Lyons et al. (EJVES 2026)</strong><br>
+              <span class="text-small text-muted">Outcomes of aortic graft infection using MAGIC criteria. 188 patients, 5-year follow-up. CRP ≥2 mg/L sensitivity 100% for eventual VGEI diagnosis. Minimum 2 years follow-up recommended for suspected cases.</span>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <strong>Husmann et al. (EJNMMI 2018)</strong><br>
+              <span class="text-small text-muted">266 PET/CT scans in 68 patients. Stop-supportive threshold SUVmax 4.3 / CRP 3.5; continue-supportive at SUVmax 6.0 / CRP 9.95; escalate-supportive at SUVmax 9.5 / CRP 31.5.</span>
+            </div>
+            <div>
+              <strong>Kouijzer et al. (CMI 2025)</strong><br>
+              <span class="text-small text-muted">Delphi consensus on VGEI treatment and follow-up. 35 experts, 4 rounds. Duration guidance: 6 weeks (complete removal + autologous vein), 12 weeks (prosthetic remains), 6 months (MRSA/MDR/Candida/no surgery).</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen M0 - Diagnostic Input -->
+    <div id="screen-m0" class="screen" data-screen="m0">
+      <h1 class="page-title">Diagnostic input</h1>
+      <div class="page-subtitle">Enter VascuMAGIC result and laboratory values</div>
+
+      <div class="question-block" id="qb-magic">
+        <div class="question-label">VascuMAGIC output</div>
+        <div class="question-text">What is the MAGIC classification?</div>
+        <div class="question-hint">Based on major and minor criteria (clinical, radiological, laboratory)</div>
+        <div class="btn-group">
+          <button class="btn btn-success" onclick="setMagicResult('not_infected')">Not infected</button>
+          <button class="btn btn-outline" onclick="setMagicResult('suspected')">Suspected</button>
+          <button class="btn btn-danger" onclick="setMagicResult('infected')">Infected</button>
+        </div>
+        <div class="question-cite">MAGIC: suspected = isolated major criterion OR minor criteria from ≥2 categories; diagnosed = major + any other criterion</div>
+      </div>
+
+      <div id="crp-block" class="question-block hidden">
+        <div class="question-label">Laboratory</div>
+        <div class="question-text">C-reactive protein (CRP)</div>
+        <div class="question-hint">CRP ≥2 mg/L has 100% sensitivity for eventual VGEI diagnosis</div>
+        <div class="input-group">
+          <input type="number" id="crp-value" min="0" max="500" step="0.1" placeholder="Value">
+          <span class="input-unit">mg/L</span>
+        </div>
+        <div id="crp-interpretation" class="mt-2 text-small"></div>
+        <div class="question-cite">Lyons 2026: sensitivity 100% at ≥2 mg/L, 97% at ≥5 mg/L</div>
+      </div>
+
+      <div id="wbc-block" class="question-block hidden">
+        <div class="question-label">Laboratory</div>
+        <div class="question-text">White blood cell count</div>
+        <div class="question-hint">Normal WBC does NOT exclude infection (sensitivity only 51%)</div>
+        <div class="input-group">
+          <input type="number" id="wbc-value" min="0" max="100" step="0.1" placeholder="Value">
+          <span class="input-unit">×10⁹/L</span>
+        </div>
+        <div id="wbc-interpretation" class="mt-2 text-small"></div>
+        <div class="question-cite">Lyons 2026: WBC sensitivity 51%; cannot be used to exclude VGEI</div>
+      </div>
+
+      <div id="m0-nav" class="hidden">
+        <div class="nav-bar">
+          <div class="nav-spacer"></div>
+          <button class="btn btn-nav" onclick="proceedFromM0()">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen M1 - Emergency Triage -->
+    <div id="screen-m1" class="screen" data-screen="m1">
+      <h1 class="page-title">Emergency triage</h1>
+      <div class="page-subtitle">Assess for immediate surgical and antibiotic indications</div>
+
+      <div class="alert alert-info">
+        <div class="alert-title">Delphi consensus</div>
+        <div>Empiric antimicrobial therapy should be initiated only when there is a complication (sepsis, bleeding) or when diagnostic intervention is delayed.</div>
+      </div>
+
+      <div id="triage-questions"></div>
+
+      <div id="triage-result" class="hidden">
+        <div id="triage-output"></div>
+        <div class="nav-bar">
+          <button class="btn btn-outline" onclick="resetTriage()">Revise answers</button>
+          <div class="nav-spacer"></div>
+          <button id="triage-next-btn" class="btn btn-nav">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen M2 - Stable Pathway -->
+    <div id="screen-m2" class="screen" data-screen="m2">
+      <h1 class="page-title">Surgical and microbiological assessment</h1>
+      <div class="page-subtitle">These inputs determine antibiotic duration and treatment pathway</div>
+
+      <div id="stable-questions"></div>
+
+      <div id="stable-nav" class="hidden">
+        <div class="nav-bar">
+          <button class="btn btn-outline" onclick="goTo('m1')">Back</button>
+          <div class="nav-spacer"></div>
+          <button class="btn btn-nav" onclick="goTo('m3')">Antibiotic guidance</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen M3 - Antibiotic Duration -->
+    <div id="screen-m3" class="screen" data-screen="m3">
+      <h1 class="page-title">Antibiotic therapy</h1>
+      <div class="page-subtitle">Duration determined by surgical extent and microbiology</div>
+
+      <div id="abx-pending" class="hidden">
+        <div class="alert alert-warning">
+          <div class="alert-title">Cultures pending</div>
+          <div>Obtain blood cultures (2-3 sets) + deep intraoperative specimens before starting antibiotics unless sepsis or bleeding present.</div>
+        </div>
+        <div class="question-block">
+          <div class="question-text">Are culture results now available?</div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="culturesNowAvailable()">Yes, enter results</button>
+            <button class="btn btn-outline" onclick="showEmpiricOverride()">No, patient unstable (give empiric now)</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="abx-empiric" class="hidden">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Empiric coverage by location</div></div>
+          <div class="card-body">
+            <div class="alert alert-danger">
+              <div class="alert-title">Abdominal VGEI (no aorto-enteric fistula)</div>
+              <div>Gram-positive cocci + gram-negative bacilli + anaerobes. Add MRSA/MRSE cover based on local epidemiology.</div>
+            </div>
+            <div class="alert alert-warning">
+              <div class="alert-title">Thoracic VGEI (no aorto-oesophageal fistula)</div>
+              <div>Gram-positive cocci. Add MRSA cover if high local prevalence.</div>
+            </div>
+            <div class="alert alert-danger">
+              <div class="alert-title">With aorto-enteric / aorto-oesophageal fistula</div>
+              <div>Broad spectrum: gram-positives + gram-negatives + anaerobes + MRSA + fungi.</div>
+            </div>
+            <div class="text-small text-muted mt-2">Consult infectious diseases for specific agents. De-escalate once cultures available.</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="abx-duration" class="hidden">
+        <div class="output-panel">
+          <h3>Antibiotic duration</h3>
+          <div class="duration-meter">
+            <div class="duration-weeks" id="abx-weeks">—</div>
+            <div class="duration-label" id="abx-label"></div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="abx-progress" style="width:0%"></div></div>
+          <div class="phase-chips" id="abx-phases"></div>
+          <div id="abx-details"></div>
+        </div>
+
+        <div id="rifampicin-block" class="hidden">
+          <div class="alert alert-warning">
+            <div class="alert-title">Rifampicin for staphylococcal infection</div>
+            <div>Add only after source control confirmed, no active bacteraemia, and no upcoming procedures. Must be combined with another active agent. Contraindicated in long-term suppressive therapy.</div>
+          </div>
+        </div>
+
+        <div id="crp-check-block" class="hidden">
+          <div class="alert alert-warning">
+            <div class="alert-title">CRP normalization</div>
+            <div>If CRP fails to normalize during follow-up, antimicrobial therapy should be prolonged regardless of initial duration.</div>
+          </div>
+          <div class="question-text mt-2">Is CRP normalizing on current therapy?</div>
+          <div class="btn-group mt-2">
+            <button class="btn btn-success" onclick="setCRPNormalizing(true)">Yes, declining</button>
+            <button class="btn btn-danger" onclick="setCRPNormalizing(false)">No, still elevated</button>
+          </div>
+          <div id="crp-result" class="mt-2"></div>
+        </div>
+      </div>
+
+      <div class="nav-bar">
+        <button class="btn btn-outline" onclick="goTo('m2')">Back</button>
+        <div class="nav-spacer"></div>
+        <button class="btn btn-nav" onclick="goTo('m4')">PET/CT guidance</button>
+      </div>
+    </div>
+
+    <!-- Screen M4 - PET/CT Engine -->
+    <div id="screen-m4" class="screen" data-screen="m4">
+      <h1 class="page-title">PET/CT interpretation</h1>
+      <div class="page-subtitle">Stop / continue / escalate guidance from VASGRA cohort</div>
+
+      <div id="petct-timing-warn" class="alert alert-danger hidden">
+        <div class="alert-title">Timing gate</div>
+        <div>FDG activity may be false-positive less than 3 months post-surgery. Inhomogeneous uptake is frequent in non-infected polyester grafts.</div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-cell">
+          <div class="info-cell-label">Stop-supportive</div>
+          <div class="info-cell-value">SUVmax ~4.3 / CRP ~3.5</div>
+        </div>
+        <div class="info-cell">
+          <div class="info-cell-label">Continue-supportive</div>
+          <div class="info-cell-value">SUVmax ~6.0 / CRP ~9.95</div>
+        </div>
+        <div class="info-cell">
+          <div class="info-cell-label">Escalate-supportive</div>
+          <div class="info-cell-value">SUVmax ~9.5 / CRP ~31.5</div>
+        </div>
+      </div>
+
+      <div class="question-block">
+        <div class="question-label">Scan timing</div>
+        <div class="question-text">Months since last surgery</div>
+        <div class="input-group">
+          <input type="number" id="petct-months" min="0" max="120" step="1" placeholder="Months">
+        </div>
+      </div>
+
+      <div class="question-block">
+        <div class="question-label">Graft material</div>
+        <select id="petct-material" class="form-group" onchange="updatePETCTMaterialNote()">
+          <option value="">Select material</option>
+          <option value="ptfe">PTFE</option>
+          <option value="polyester">Polyester / Dacron</option>
+          <option value="autologous">Autologous vein</option>
+          <option value="biological">Biological</option>
+        </select>
+        <div id="petct-material-note" class="text-small text-muted mt-2"></div>
+      </div>
+
+      <div class="question-block">
+        <div class="question-label">PET/CT findings</div>
+        <div class="question-text">SUVmax</div>
+        <div class="input-group">
+          <input type="number" id="petct-suv" min="0" max="50" step="0.1" placeholder="0.0">
+        </div>
+      </div>
+
+      <div class="question-block">
+        <div class="question-text">FDG uptake pattern</div>
+        <select id="petct-pattern" onchange="updatePETCTOutput()">
+          <option value="">Select pattern</option>
+          <option value="none">No uptake / background only</option>
+          <option value="diffuse">Diffuse (non-focal)</option>
+          <option value="focal_mild">Focal, mild</option>
+          <option value="focal">Focal, intense</option>
+          <option value="focal_abscess">Focal with fluid/abscess</option>
+        </select>
+      </div>
+
+      <div class="question-block">
+        <div class="question-text">CRP at time of scan</div>
+        <div class="input-group">
+          <input type="number" id="petct-crp" min="0" max="500" step="0.1" placeholder="0.0">
+          <span class="input-unit">mg/L</span>
+        </div>
+      </div>
+
+      <div class="question-block">
+        <div class="question-text">Clinical signs of infection</div>
+        <div class="btn-group">
+          <button class="btn btn-danger" id="petct-signs-yes" onclick="setPETCTSigns(true)">Present</button>
+          <button class="btn btn-success" id="petct-signs-no" onclick="setPETCTSigns(false)">Absent</button>
+        </div>
+        <div class="question-cite">PET/CT adds independent information beyond CRP and clinical signs</div>
+      </div>
+
+      <div id="petct-output" class="hidden">
+        <div class="output-panel">
+          <h3>Treatment recommendation</h3>
+          <div class="petct-grid">
+            <div class="petct-zone petct-zone-stop" id="pz-stop">
+              <div class="petct-zone-label">Stop</div>
+              <div class="petct-threshold">SUVmax ~4.3<br>CRP ~3.5</div>
+            </div>
+            <div class="petct-zone petct-zone-cont" id="pz-cont">
+              <div class="petct-zone-label">Continue</div>
+              <div class="petct-threshold">SUVmax ~6.0<br>CRP ~9.95</div>
+            </div>
+            <div class="petct-zone petct-zone-esc" id="pz-esc">
+              <div class="petct-zone-label">Escalate</div>
+              <div class="petct-threshold">SUVmax ~9.5<br>CRP ~31.5</div>
+            </div>
+          </div>
+          <div id="petct-recommendation"></div>
+          <div class="text-small text-muted mt-3">Husmann et al. EJNMMI 2018 — VASGRA cohort (n=68, 266 scans). MDT review required.</div>
+        </div>
+      </div>
+
+      <div class="nav-bar">
+        <button class="btn btn-outline" onclick="goTo('m3')">Back</button>
+        <div class="nav-spacer"></div>
+        <button class="btn btn-nav" onclick="goTo('m5')">Follow-up schedule</button>
+      </div>
+    </div>
+
+    <!-- Screen M5 - Follow-up Schedule -->
+    <div id="screen-m5" class="screen" data-screen="m5">
+      <h1 class="page-title">Follow-up schedule</h1>
+      <div class="page-subtitle">Evidence-based monitoring timeline</div>
+
+      <div class="question-block">
+        <div class="info-grid">
+          <div>
+            <div class="text-small text-muted mb-1">Graft insertion date</div>
+            <input type="date" id="date-insertion" onchange="buildTimeline()">
+          </div>
+          <div>
+            <div class="text-small text-muted mb-1">Assessment date</div>
+            <input type="date" id="date-assessment" onchange="buildTimeline()">
+          </div>
+        </div>
+      </div>
+
+      <div id="fu-warning" class="hidden"></div>
+      <div id="timeline-output"></div>
+
+      <div class="nav-bar">
+        <button class="btn btn-outline" onclick="goTo('m4')">Back</button>
+        <div class="nav-spacer"></div>
+        <button class="btn btn-outline" onclick="goTo('welcome')">New case</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ============================================
+// STATE MANAGEMENT
+// ============================================
+const state = {
+  magicResult: null,
+  crp: null,
+  wbc: null,
+  triageAnswers: {},
+  stableAnswers: {},
+  culturesPending: false,
+  organism: null,
+  graftRemoval: null,
+  reconstructMaterial: null,
+  fitForSurgery: null,
+  petctSigns: null,
+  abxDurationWeeks: null,
+  abxMode: null,
+  crpHistory: [],
+  currentScreen: 'welcome'
+};
+
+// ============================================
+// GLOBAL EXPORTS (fix for onclick handlers)
+// ============================================
+window.goTo = goTo;
+window.closeSidebar = closeSidebar;
+window.toggleSidebar = toggleSidebar;
+window.setMagicResult = setMagicResult;
+window.updateCRPDisplay = updateCRPDisplay;
+window.updateWBCDisplay = updateWBCDisplay;
+window.proceedFromM0 = proceedFromM0;
+window.answerTriage = answerTriage;
+window.resetTriage = resetTriage;
+window.answerStable = answerStable;
+window.culturesNowAvailable = culturesNowAvailable;
+window.showEmpiricOverride = showEmpiricOverride;
+window.setOrganismAndCompute = setOrganismAndCompute;
+window.setCRPNormalizing = setCRPNormalizing;
+window.checkPETCTTiming = checkPETCTTiming;
+window.updatePETCTMaterialNote = updatePETCTMaterialNote;
+window.setPETCTSigns = setPETCTSigns;
+window.updatePETCTOutput = updatePETCTOutput;
+window.buildTimeline = buildTimeline;
+window.setTodayDates = setTodayDates;
+
+// ============================================
+// NAVIGATION
+// ============================================
+const screenTitles = {
+  welcome: 'Welcome',
+  m0: 'Diagnostic input',
+  m1: 'Emergency triage',
+  m2: 'Surgical assessment',
+  m3: 'Antibiotic guidance',
+  m4: 'PET/CT guidance',
+  m5: 'Follow-up schedule'
+};
+
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-' + screen);
+  if (el) {
+    el.classList.add('active');
+    state.currentScreen = screen;
+    const bc = document.getElementById('bc-current');
+    if (bc) bc.textContent = screenTitles[screen] || screen;
+    window.scrollTo(0, 0);
+    closeSidebar();
+    
+    if (screen === 'm1') initTriage();
+    if (screen === 'm2') initStable();
+    if (screen === 'm3') initABX();
+    if (screen === 'm5') { setTodayDates(); buildTimeline(); }
+    updateSidebar();
+  }
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+// ============================================
+// SIDEBAR UPDATE
+// ============================================
+function updateSidebar() {
+  const statusDiv = document.getElementById('status-badge');
+  const jumpContainer = document.getElementById('jump-container');
+  const timelineContainer = document.getElementById('timeline-container');
+  
+  if (!state.magicResult) {
+    statusDiv.className = 'patient-status patient-status-none';
+    statusDiv.textContent = 'No active case';
+    return;
+  }
+  
+  if (jumpContainer) jumpContainer.classList.remove('hidden');
+  if (timelineContainer) timelineContainer.classList.remove('hidden');
+  
+  const statusMap = {
+    not_infected: { class: 'patient-status-clear', text: 'Not infected' },
+    suspected: { class: 'patient-status-suspect', text: 'Suspected infection' },
+    infected: { class: 'patient-status-infected', text: 'Confirmed infection' }
+  };
+  const s = statusMap[state.magicResult] || { class: 'patient-status-none', text: '' };
+  statusDiv.className = `patient-status ${s.class}`;
+  statusDiv.textContent = s.text;
+  
+  const jumpTriage = document.getElementById('jump-triage');
+  const jumpPetct = document.getElementById('jump-petct');
+  const jumpAbx = document.getElementById('jump-abx');
+  
+  if (jumpTriage) jumpTriage.classList.remove('hidden');
+  if (jumpPetct && (state.magicResult === 'infected' || state.magicResult === 'suspected')) jumpPetct.classList.remove('hidden');
+  if (jumpAbx && (state.magicResult === 'infected' || state.magicResult === 'suspected')) jumpAbx.classList.remove('hidden');
+  
+  if (state.abxDurationWeeks) {
+    const abxContainer = document.getElementById('abx-container');
+    const abxInfo = document.getElementById('abx-info');
+    if (abxContainer) abxContainer.classList.remove('hidden');
+    if (abxInfo) abxInfo.innerHTML = `${state.abxDurationWeeks} weeks · ${state.abxMode === 'sat' ? 'Suppressive' : 'Curative'}`;
+  }
+  
+  if (state.crpHistory.length > 0) {
+    const crpContainer = document.getElementById('crp-container');
+    const barsEl = document.getElementById('crp-bars');
+    if (crpContainer) crpContainer.classList.remove('hidden');
+    if (barsEl) {
+      const max = Math.max(...state.crpHistory, 1);
+      barsEl.innerHTML = state.crpHistory.map(v => {
+        const h = Math.max(4, Math.round((v / max) * 32));
+        const cls = v > 100 ? 'crp-bar-high' : v > 20 ? 'crp-bar-mid' : 'crp-bar-low';
+        return `<div class="crp-bar ${cls}" style="height:${h}px" title="${v} mg/L"></div>`;
+      }).join('');
+    }
+  }
+  
+  const tlEl = document.getElementById('sidebar-timeline');
+  if (tlEl) tlEl.innerHTML = buildSidebarTimeline();
+}
+
+function buildSidebarTimeline() {
+  if (!state.magicResult || state.magicResult === 'not_infected') return '';
+  const isSuspected = state.magicResult === 'suspected';
+  const items = isSuspected ? [
+    { dot: 'timeline-dot-red', title: 'Baseline', sub: 'Record MAGIC criteria' },
+    { dot: 'timeline-dot-amber', title: '6 weeks', sub: 'Re-run MAGIC, CRP, CTA' },
+    { dot: 'timeline-dot-amber', title: '3 months', sub: 'CRP + CTA ± PET/CT' },
+    { dot: 'timeline-dot-amber', title: '6 months', sub: 'Review progress' },
+    { dot: 'timeline-dot-blue', title: '12 months', sub: 'Annual review' },
+    { dot: 'timeline-dot-blue', title: '24 months', sub: 'Minimum follow-up' }
+  ] : [
+    { dot: 'timeline-dot-red', title: '1 week', sub: 'Baseline CE-CT' },
+    { dot: 'timeline-dot-amber', title: '3 months', sub: 'CE-CT + CRP' },
+    { dot: 'timeline-dot-amber', title: '6 months', sub: 'Review stop criteria' },
+    { dot: 'timeline-dot-blue', title: 'Annual', sub: 'Surveillance imaging' }
+  ];
+  return items.map(i => `<li><div class="timeline-dot ${i.dot}"></div><div class="timeline-text"><div class="timeline-title">${i.title}</div><div class="timeline-sub">${i.sub}</div></div></li>`).join('');
+}
+
+// ============================================
+// MODULE 0 - Diagnostic Input
+// ============================================
+function setMagicResult(val) {
+  state.magicResult = val;
+  document.getElementById('crp-block').classList.remove('hidden');
+  document.getElementById('wbc-block').classList.remove('hidden');
+  document.getElementById('m0-nav').classList.remove('hidden');
+  updateSidebar();
+}
+
+function updateCRPDisplay() {
+  const v = parseFloat(document.getElementById('crp-value').value);
+  if (isNaN(v)) return;
+  state.crp = v;
+  if (!state.crpHistory.includes(v)) state.crpHistory.push(v);
+  const el = document.getElementById('crp-interpretation');
+  if (v < 2) el.innerHTML = '<span style="color: var(--green-600);">CRP normal. Reliably excludes VGEI at this presentation.</span>';
+  else if (v < 5) el.innerHTML = '<span style="color: var(--amber-600);">CRP mildly elevated. Sensitivity 100% for eventual VGEI.</span>';
+  else el.innerHTML = '<span style="color: var(--red-600);">CRP significantly elevated. Strongly consistent with VGEI.</span>';
+  updateSidebar();
+}
+
+function updateWBCDisplay() {
+  const v = parseFloat(document.getElementById('wbc-value').value);
+  if (isNaN(v)) return;
+  state.wbc = v;
+  const el = document.getElementById('wbc-interpretation');
+  el.innerHTML = v >= 11 ? '<span style="color: var(--amber-600);">WBC elevated (minor MAGIC criterion). Sensitivity only 51%.</span>' : '<span class="text-muted">WBC normal. Does NOT exclude VGEI.</span>';
+}
+
+function proceedFromM0() {
+  if (!state.magicResult) return;
+  if (state.magicResult === 'not_infected' && state.crp !== null && state.crp < 2) {
+    goTo('m5');
+    return;
+  }
+  if (state.magicResult === 'not_infected' && state.crp !== null && state.crp >= 2) {
+    state.magicResult = 'suspected';
+  }
+  goTo('m1');
+}
+
+// ============================================
+// MODULE 1 - Triage
+// ============================================
+const triageQuestions = [
+  { id: 'q1', text: 'Active bleeding at or near the graft site?', hint: 'Haemorrhage from anastomosis or graft body' },
+  { id: 'q2', text: 'Fistula present or suspected?', hint: 'Aorto-enteric, aorto-bronchial, or other fistula' },
+  { id: 'q3', text: 'Sepsis or SIRS criteria met?', hint: 'Fever, tachycardia, leucocytosis/penia, organ dysfunction' },
+  { id: 'q4', text: 'Haemodynamic instability?', hint: 'Systolic BP <90 mmHg, vasopressors required' },
+  { id: 'q5', text: 'Positive blood cultures with no other source?', hint: 'Bacteraemia attributed to the graft' }
+];
+
+function initTriage() {
+  const container = document.getElementById('triage-questions');
+  if (!container) return;
+  container.innerHTML = '';
+  state.triageAnswers = {};
+  triageQuestions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'question-block';
+    div.id = `tq-${q.id}`;
+    div.innerHTML = `
+      <div class="question-label">Question ${i+1} of ${triageQuestions.length}</div>
+      <div class="question-text">${q.text}</div>
+      <div class="question-hint">${q.hint}</div>
+      <div class="btn-group">
+        <button class="btn btn-danger" onclick="answerTriage('${q.id}', true, this)">Yes</button>
+        <button class="btn btn-success" onclick="answerTriage('${q.id}', false, this)">No</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+  document.getElementById('triage-result').classList.add('hidden');
+}
+
+function answerTriage(id, val, btn) {
+  state.triageAnswers[id] = val;
+  const block = document.getElementById(`tq-${id}`);
+  if (block) {
+    block.classList.add(val ? 'alert-danger' : 'alert-success');
+  }
+  if (btn && btn.parentElement) {
+    btn.parentElement.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+  const allAnswered = triageQuestions.every(q => state.triageAnswers[q.id] !== undefined);
+  if (allAnswered) showTriageResult();
+}
+
+function showTriageResult() {
+  const anyYes = Object.values(state.triageAnswers).some(v => v === true);
+  const resultEl = document.getElementById('triage-result');
+  const outputEl = document.getElementById('triage-output');
+  const nextBtn = document.getElementById('triage-next-btn');
+  if (resultEl) resultEl.classList.remove('hidden');
+  
+  if (anyYes) {
+    const triggers = triageQuestions.filter(q => state.triageAnswers[q.id]).map(q => q.text);
+    outputEl.innerHTML = `
+      <div class="output-panel">
+        <h3>Emergency pathway</h3>
+        <div class="output-row"><div class="output-label">Status</div><div class="output-value output-value-danger">Haemodynamically unstable</div></div>
+        <div class="output-row"><div class="output-label">Triggers</div><div class="output-value">${triggers.join('<br>')}</div></div>
+        <div class="output-row"><div class="output-label">Action</div><div class="output-value">Start empiric antibiotics immediately. Urgent operative review. Activate MDT.</div></div>
+      </div>
+      <div class="alert alert-danger mt-3"><div class="alert-title">Empiric antibiotic guidance</div><div>Abdominal VGEI: Piperacillin-tazobactam ± vancomycin. Thoracic VGEI: Vancomycin or flucloxacillin. Consult infectious diseases.</div></div>
+    `;
+    nextBtn.onclick = () => goTo('m2');
+  } else {
+    outputEl.innerHTML = `
+      <div class="output-panel">
+        <h3>Elective pathway</h3>
+        <div class="output-row"><div class="output-label">Status</div><div class="output-value output-value-success">Haemodynamically stable</div></div>
+        <div class="output-row"><div class="output-label">Next steps</div><div class="output-value">Obtain cultures before antibiotics. MDT review. Proceed with surgical and microbiological assessment.</div></div>
+      </div>
+    `;
+    nextBtn.onclick = () => goTo('m2');
+  }
+}
+
+function resetTriage() { initTriage(); }
+
+// ============================================
+// MODULE 2 - Stable Pathway
+// ============================================
+const stableQuestions = [
+  { id: 'fitSurgery', label: 'Surgical fitness', text: 'Is the patient fit for open surgery?', type: 'yesno', options: null },
+  { id: 'organism', label: 'Microbiology', text: 'Select organism / virulence category', type: 'select', options: [
+    { value: 'unknown', label: 'Unknown - cultures pending' },
+    { value: 'mrsa', label: 'MRSA / Methicillin-resistant staphylococci' },
+    { value: 'mdr', label: 'MDR gram-negative / Pseudomonas' },
+    { value: 'candida', label: 'Candida / fungal' },
+    { value: 'staph_mss', label: 'MSSA / Coagulase-negative Staphylococcus' },
+    { value: 'low_virulence', label: 'Other low-virulence organism' }
+  ]},
+  { id: 'graftRemoval', label: 'Surgical extent', text: 'Planned extent of graft removal', type: 'select', options: [
+    { value: 'complete', label: 'Complete graft excision' },
+    { value: 'partial', label: 'Partial excision (some prosthetic remains)' },
+    { value: 'none', label: 'No surgery - medical management only' }
+  ]},
+  { id: 'reconstructMaterial', label: 'Reconstruction', text: 'Reconstruction material to be used', type: 'select', options: [
+    { value: 'autologous', label: 'Autologous vein' },
+    { value: 'biological', label: 'Biological graft' },
+    { value: 'prosthetic', label: 'Prosthetic / synthetic' },
+    { value: 'na', label: 'No reconstruction' }
+  ]}
+];
+
+function initStable() {
+  const container = document.getElementById('stable-questions');
+  if (!container) return;
+  container.innerHTML = '';
+  stableQuestions.forEach(q => {
+    const div = document.createElement('div');
+    div.className = 'question-block';
+    let inputHtml = '';
+    if (q.type === 'yesno') {
+      inputHtml = `<div class="btn-group"><button class="btn btn-primary" onclick="answerStable('${q.id}', true)">Yes, fit for surgery</button><button class="btn btn-outline" onclick="answerStable('${q.id}', false)">No, conservative</button></div>`;
+    } else {
+      const opts = q.options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+      inputHtml = `<select id="sel-${q.id}" class="form-group" onchange="answerStable('${q.id}', this.value)"><option value="">Select</option>${opts}</select>`;
+    }
+    div.innerHTML = `<div class="question-label">${q.label}</div><div class="question-text">${q.text}</div>${inputHtml}`;
+    container.appendChild(div);
+  });
+}
+
+function answerStable(id, val) {
+  state.stableAnswers[id] = val;
+  if (id === 'fitSurgery') state.fitForSurgery = val;
+  if (id === 'organism') state.organism = val;
+  if (id === 'graftRemoval') state.graftRemoval = val;
+  if (id === 'reconstructMaterial') state.reconstructMaterial = val;
+  if (id === 'organism' && val === 'unknown') state.culturesPending = true;
+  
+  const allAnswered = stableQuestions.every(q => state.stableAnswers[q.id] !== undefined);
+  document.getElementById('stable-nav').classList.toggle('hidden', !allAnswered);
+}
+
+// ============================================
+// MODULE 3 - Antibiotic Duration
+// ============================================
+function initABX() {
+  document.getElementById('abx-pending').classList.add('hidden');
+  document.getElementById('abx-empiric').classList.add('hidden');
+  document.getElementById('abx-duration').classList.add('hidden');
+  document.getElementById('rifampicin-block').classList.add('hidden');
+  document.getElementById('crp-check-block').classList.add('hidden');
+  
+  if (state.organism === 'unknown' || state.culturesPending) {
+    document.getElementById('abx-pending').classList.remove('hidden');
+    return;
+  }
+  computeABXDuration();
+}
+
+function culturesNowAvailable() {
+  state.culturesPending = false;
+  document.getElementById('abx-pending').classList.add('hidden');
+  const selDiv = document.createElement('div');
+  selDiv.innerHTML = `<div class="question-block"><div class="question-label">Organism</div><select id="abx-org-sel" class="form-group" onchange="setOrganismAndCompute(this.value)"><option value="">Select</option><option value="mrsa">MRSA</option><option value="mdr">MDR gram-negative</option><option value="candida">Candida</option><option value="staph_mss">MSSA</option></select></div>`;
+  document.getElementById('abx-pending').after(selDiv);
+}
+
+function setOrganismAndCompute(val) {
+  state.organism = val;
+  computeABXDuration();
+}
+
+function showEmpiricOverride() {
+  document.getElementById('abx-empiric').classList.remove('hidden');
+}
+
+function computeABXDuration() {
+  document.getElementById('abx-duration').classList.remove('hidden');
+  
+  let weeks, label, barPct = 0, phases = [], lines = [];
+  const isHighRisk = ['mrsa','mdr','candida'].includes(state.organism);
+  const noSurgery = state.graftRemoval === 'none' || state.fitForSurgery === false;
+  const completeAutoVein = state.graftRemoval === 'complete' && state.reconstructMaterial === 'autologous';
+  const prostheticRemains = state.graftRemoval === 'partial' || state.reconstructMaterial === 'prosthetic';
+  
+  if (noSurgery && isHighRisk) {
+    weeks = '∞'; label = 'Lifelong suppression'; barPct = 100;
+    state.abxDurationWeeks = 'Lifelong'; state.abxMode = 'sat';
+    phases = ['IV induction 1-2w', 'Oral long-term SAT'];
+    lines = [{ label: 'Duration', value: 'Lifelong suppressive therapy', cls: 'output-value-danger' }];
+  } else if (isHighRisk || noSurgery) {
+    weeks = 24; label = '6 months'; barPct = 80;
+    state.abxDurationWeeks = 24; state.abxMode = 'curative';
+    phases = ['IV 4-6 weeks', 'Oral to complete 6 months'];
+    lines = [{ label: 'Duration', value: '6 months total', cls: 'output-value-warning' }];
+    if (state.organism === 'mrsa') document.getElementById('rifampicin-block').classList.remove('hidden');
+  } else if (completeAutoVein) {
+    weeks = 6; label = '6 weeks'; barPct = 30;
+    state.abxDurationWeeks = 6; state.abxMode = 'curative';
+    phases = ['IV 1-2 weeks', 'Oral to complete 6 weeks'];
+    lines = [{ label: 'Duration', value: '6 weeks total', cls: 'output-value-success' }];
+    if (state.organism === 'mrsa') document.getElementById('rifampicin-block').classList.remove('hidden');
+  } else if (prostheticRemains) {
+    weeks = 12; label = '12 weeks'; barPct = 55;
+    state.abxDurationWeeks = 12; state.abxMode = 'curative';
+    phases = ['IV 4-6 weeks', 'Oral to complete 12 weeks'];
+    lines = [{ label: 'Duration', value: '12 weeks minimum', cls: 'output-value-warning' }];
+    if (state.organism === 'mrsa') document.getElementById('rifampicin-block').classList.remove('hidden');
+    document.getElementById('crp-check-block').classList.remove('hidden');
+  } else {
+    weeks = 12; label = '12 weeks'; barPct = 55;
+    state.abxDurationWeeks = 12; state.abxMode = 'curative';
+    phases = ['IV 4-6 weeks', 'Oral to complete 12 weeks'];
+    lines = [{ label: 'Duration', value: '12 weeks', cls: 'output-value-warning' }];
+  }
+  
+  document.getElementById('abx-weeks').textContent = weeks;
+  document.getElementById('abx-label').textContent = label;
+  document.getElementById('abx-progress').style.width = barPct + '%';
+  document.getElementById('abx-phases').innerHTML = phases.map(p => `<div class="phase-chip ${p.includes('SAT') ? 'phase-chip-active' : ''}">${p}</div>`).join('');
+  document.getElementById('abx-details').innerHTML = lines.map(l => `<div class="output-row"><div class="output-label">${l.label}</div><div class="output-value ${l.cls}">${l.value}</div></div>`).join('');
+  
+  updateSidebar();
+}
+
+function setCRPNormalizing(val) {
+  const el = document.getElementById('crp-result');
+  if (!val) {
+    el.innerHTML = `<div class="alert alert-danger mt-2"><div class="alert-title">Prolongation indicated</div><div>CRP not normalizing. Therapy should be prolonged beyond ${state.abxDurationWeeks} weeks.</div></div>`;
+  } else {
+    el.innerHTML = `<div class="alert alert-success mt-2"><div class="alert-title">CRP normalizing</div><div>Continue current course as planned.</div></div>`;
+  }
+}
+
+// ============================================
+// MODULE 4 - PET/CT
+// ============================================
+function checkPETCTTiming() {
+  const months = parseFloat(document.getElementById('petct-months').value);
+  const warn = document.getElementById('petct-timing-warn');
+  if (!isNaN(months) && months < 3) warn.classList.remove('hidden');
+  else warn.classList.add('hidden');
+  updatePETCTOutput();
+}
+
+function updatePETCTMaterialNote() {
+  const mat = document.getElementById('petct-material').value;
+  const notes = { ptfe: 'PTFE: focal uptake specific for true infection.', polyester: 'Polyester: inhomogeneous uptake common even in non-infected grafts.', autologous: 'Autologous vein: less confounded.', biological: 'Limited specific data.' };
+  document.getElementById('petct-material-note').textContent = notes[mat] || '';
+}
+
+function setPETCTSigns(val) {
+  state.petctSigns = val;
+  document.getElementById('petct-signs-yes').classList.toggle('selected', val);
+  document.getElementById('petct-signs-no').classList.toggle('selected', !val);
+  updatePETCTOutput();
+}
+
+function updatePETCTOutput() {
+  const suv = parseFloat(document.getElementById('petct-suv').value);
+  const crp = parseFloat(document.getElementById('petct-crp').value);
+  const pattern = document.getElementById('petct-pattern').value;
+  if (isNaN(suv) || isNaN(crp) || !pattern) return;
+  
+  document.getElementById('petct-output').classList.remove('hidden');
+  ['pz-stop', 'pz-cont', 'pz-esc'].forEach(id => document.getElementById(id).classList.remove('active'));
+  
+  let stopScore = 0, contScore = 0, escScore = 0;
+  if (suv <= 5) stopScore += 3; else if (suv <= 7) contScore += 3; else escScore += 3;
+  if (crp <= 5) stopScore += 2; else if (crp <= 15) contScore += 2; else escScore += 2;
+  if (pattern === 'none' || pattern === 'diffuse') stopScore += 2;
+  else if (pattern === 'focal_mild') contScore += 2;
+  else if (pattern === 'focal') { contScore += 1; escScore += 1; }
+  else if (pattern === 'focal_abscess') escScore += 3;
+  if (state.petctSigns === false) stopScore += 1;
+  else if (state.petctSigns === true) escScore += 2;
+  
+  const max = Math.max(stopScore, contScore, escScore);
+  let rec = '';
+  if (max === stopScore && stopScore > contScore && stopScore > escScore) {
+    document.getElementById('pz-stop').classList.add('active');
+    rec = `<div class="output-row"><div class="output-label">Recommendation</div><div class="output-value output-value-success">Stop-supportive therapy</div></div><div class="output-row"><div class="output-label">Your values</div><div class="output-value">SUVmax ${suv.toFixed(1)} / CRP ${crp.toFixed(1)}</div></div>`;
+  } else if (max === escScore && escScore >= contScore) {
+    document.getElementById('pz-esc').classList.add('active');
+    rec = `<div class="output-row"><div class="output-label">Recommendation</div><div class="output-value output-value-danger">Escalate-supportive therapy</div></div><div class="output-row"><div class="output-label">Your values</div><div class="output-value">SUVmax ${suv.toFixed(1)} / CRP ${crp.toFixed(1)}</div></div>`;
+  } else {
+    document.getElementById('pz-cont').classList.add('active');
+    rec = `<div class="output-row"><div class="output-label">Recommendation</div><div class="output-value output-value-warning">Continue-supportive therapy</div></div><div class="output-row"><div class="output-label">Your values</div><div class="output-value">SUVmax ${suv.toFixed(1)} / CRP ${crp.toFixed(1)}</div></div>`;
+  }
+  document.getElementById('petct-recommendation').innerHTML = rec;
+}
+
+// ============================================
+// MODULE 5 - Follow-up Timeline
+// ============================================
+function setTodayDates() {
+  const today = new Date().toISOString().split('T')[0];
+  const assess = document.getElementById('date-assessment');
+  if (assess && !assess.value) assess.value = today;
+}
+
+function addMonths(date, months) { const d = new Date(date); d.setMonth(d.getMonth() + months); return d; }
+function addWeeks(date, weeks) { const d = new Date(date); d.setDate(d.getDate() + weeks * 7); return d; }
+function fmtDate(d) { return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+function daysDiff(d) { return Math.round((d - new Date()) / (86400000)); }
+
+function buildTimeline() {
+  const assessDate = document.getElementById('date-assessment').value;
+  if (!assessDate) return;
+  
+  const outEl = document.getElementById('timeline-output');
+  const warnEl = document.getElementById('fu-warning');
+  
+  if (!state.magicResult) {
+    warnEl.innerHTML = '<div class="alert alert-warning">Complete diagnostic input first.</div>';
+    warnEl.classList.remove('hidden');
+    return;
+  }
+  warnEl.classList.add('hidden');
+  
+  let entries = [];
+  if (state.magicResult === 'suspected') {
+    entries = [
+      { date: new Date(assessDate), title: 'Baseline assessment', dot: 'timeline-dot-red', cls: 'timeline-card-urgent', items: ['Record all MAGIC criteria', 'CRP + WBC', `CRP: ${state.crp || 'not entered'} mg/L`, 'CT imaging if not done', 'MDT discussion'] },
+      { date: addWeeks(assessDate, 6), title: '6-week review', dot: 'timeline-dot-amber', cls: 'timeline-card-due', items: ['Re-run MAGIC criteria', 'CRP + WBC', 'CTA if symptomatic', 'May upgrade to Infected'] },
+      { date: addMonths(assessDate, 3), title: '3-month review', dot: 'timeline-dot-amber', cls: 'timeline-card-due', items: ['CRP + CTA', 'PET/CT if ≥3 months post-op'] },
+      { date: addMonths(assessDate, 6), title: '6-month review', dot: 'timeline-dot-amber', cls: 'timeline-card-upcoming', items: ['CRP + CTA ± PET/CT', 'Most progressors identified by now'] },
+      { date: addMonths(assessDate, 12), title: '12-month review', dot: 'timeline-dot-blue', cls: 'timeline-card-upcoming', items: ['Annual review', 'CRP + CTA'] },
+      { date: addMonths(assessDate, 24), title: '24-month review', dot: 'timeline-dot-blue', cls: 'timeline-card-upcoming', items: ['Minimum follow-up endpoint', '59% progress by this point'] }
+    ];
+  } else if (state.magicResult === 'infected') {
+    entries = [
+      { date: new Date(assessDate), title: 'Treatment initiation', dot: 'timeline-dot-red', cls: 'timeline-card-urgent', items: [`Antibiotic course: ${state.abxDurationWeeks || 'see Module 3'} weeks planned`, 'MDT convened'] },
+      { date: addWeeks(assessDate, 1), title: 'Baseline CE-CT', dot: 'timeline-dot-amber', cls: 'timeline-card-due', items: ['Contrast-enhanced CT', 'CRP + WBC', 'Wound check'] },
+      { date: addMonths(assessDate, 3), title: '3-month imaging', dot: 'timeline-dot-amber', cls: 'timeline-card-upcoming', items: ['CE-CT + CRP', 'PET/CT if graft retained', 'Review antibiotic response'] },
+      { date: addMonths(assessDate, 6), title: '6-month stop decision', dot: 'timeline-dot-amber', cls: 'timeline-card-upcoming', items: ['CE-CT + CRP', 'Consider PET/CT', 'Clinical exam before stopping'] },
+      { date: addMonths(assessDate, 12), title: 'Annual review', dot: 'timeline-dot-blue', cls: 'timeline-card-upcoming', items: ['CE-CT if asymptomatic', 'Assess for relapse'] }
+    ];
+  }
+  
+  let html = '';
+  entries.forEach((e, i) => {
+    const days = daysDiff(e.date);
+    const dateStr = fmtDate(e.date) + (days > 0 ? ` (in ${days} days)` : days < 0 ? ` (${Math.abs(days)} days ago)` : ' (today)');
+    html += `<div class="timeline-entry"><div class="timeline-track"><div class="timeline-track-dot ${e.dot}"></div>${i < entries.length-1 ? '<div class="timeline-track-line"></div>' : ''}</div><div class="timeline-card ${e.cls}"><div class="timeline-date">${dateStr}</div><div class="timeline-title">${e.title}</div><ul class="timeline-items">${e.items.map(it => `<li>${it}</li>`).join('')}</ul></div></div>`;
+  });
+  outEl.innerHTML = html;
+  updateSidebar();
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  goTo('welcome');
+  setTodayDates();
+});
+</script>
+</body>
+</html>
