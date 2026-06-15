@@ -1319,10 +1319,10 @@ function computeABXDuration() {
     phases = ['IV induction 1-2w', 'Oral long-term SAT'];
     lines = [{ label: 'Duration', value: 'Lifelong suppressive therapy', cls: 'output-value-danger' }];
   } else if (isHighRisk || noSurgery) {
-    weeks = 24; label = '6 months'; barPct = 80;
+    weeks = 24; label = '24 weeks (6 months)'; barPct = 80;
     state.abxDurationWeeks = 24; state.abxMode = 'curative';
-    phases = ['IV 4-6 weeks', 'Oral to complete 6 months'];
-    lines = [{ label: 'Duration', value: '6 months total', cls: 'output-value-warning' }];
+    phases = ['IV 4-6 weeks', 'Oral to complete 24 weeks'];
+    lines = [{ label: 'Duration', value: '24 weeks total', cls: 'output-value-warning' }];
     if (state.organism === 'mrsa') document.getElementById('rifampicin-block').classList.remove('hidden');
   } else if (completeAutoVein) {
     weeks = 6; label = '6 weeks'; barPct = 30;
