@@ -1230,6 +1230,29 @@ const state = {
   currentScreen: 'welcome'
 };
 
+// Make functions available globally
+window.goTo = goTo;
+window.closeSidebar = closeSidebar;
+window.toggleSidebar = toggleSidebar;
+window.setMagicResult = setMagicResult;
+window.updateCRPDisplay = updateCRPDisplay;
+window.updateWBCDisplay = updateWBCDisplay;
+window.proceedFromM0 = proceedFromM0;
+window.answerTriage = answerTriage;
+window.resetTriage = resetTriage;
+window.answerStable = answerStable;
+window.culturesNowAvailable = culturesNowAvailable;
+window.showEmpircOverride = showEmpircOverride;
+window.setOrganismAndCompute = setOrganismAndCompute;
+window.setCRPNormalizing = setCRPNormalizing;
+window.checkPETCTTiming = checkPETCTTiming;
+window.updatePETCTMaterialNote = updatePETCTMaterialNote;
+window.setPETCTSigns = setPETCTSigns;
+window.updatePETCTOutput = updatePETCTOutput;
+window.buildTimeline = buildTimeline;
+window.setTodayDates = setTodayDates;
+window.showAbout = showAbout;
+
 // ═══════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════
@@ -1244,21 +1267,28 @@ const screenNames = {
 };
 
 function goTo(screen) {
+  console.log("Navigating to:", screen); // Debug log
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById('screen-' + screen);
   if (el) {
     el.classList.add('active');
     state.currentScreen = screen;
-    document.getElementById('bc-current').textContent = screenNames[screen] || screen;
+    const bcElement = document.getElementById('bc-current');
+    if (bcElement) bcElement.textContent = screenNames[screen] || screen;
     window.scrollTo(0, 0);
-    closeSidebar();
+    if (typeof closeSidebar === 'function') closeSidebar();
 
     // Run screen-specific init
-    if (screen === 'm1') initTriage();
-    if (screen === 'm2') initStable();
-    if (screen === 'm3') initABX();
-    if (screen === 'm5') { setTodayDates(); buildTimeline(); }
-    updateSidebar();
+    if (screen === 'm1' && typeof initTriage === 'function') initTriage();
+    if (screen === 'm2' && typeof initStable === 'function') initStable();
+    if (screen === 'm3' && typeof initABX === 'function') initABX();
+    if (screen === 'm5') { 
+      if (typeof setTodayDates === 'function') setTodayDates(); 
+      if (typeof buildTimeline === 'function') buildTimeline(); 
+    }
+    if (typeof updateSidebar === 'function') updateSidebar();
+  } else {
+    console.error("Screen not found:", screen);
   }
 }
 
@@ -1266,12 +1296,17 @@ function goTo(screen) {
 // SIDEBAR
 // ═══════════════════════════════════════════════════
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('open');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('overlay');
+  if (sidebar) sidebar.classList.toggle('open');
+  if (overlay) overlay.classList.toggle('open');
 }
+
 function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('open');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('overlay');
+  if (sidebar) sidebar.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
 }
 
 function updateSidebar() {
@@ -1279,47 +1314,55 @@ function updateSidebar() {
   const jumpSec = document.getElementById('jump-section');
   const tlSec = document.getElementById('timeline-section');
 
+  if (!statusEl) return;
+
   if (!state.magicResult) {
     statusEl.className = 'sidebar-patient-status status-none';
     statusEl.textContent = 'No case active';
     return;
   }
 
-  jumpSec.style.display = '';
-  tlSec.style.display = '';
+  if (jumpSec) jumpSec.style.display = '';
+  if (tlSec) tlSec.style.display = '';
 
   const labels = { not_infected: 'Not infected', suspected: '⚠ Suspected', infected: '● Infected' };
   const classes = { not_infected: 'status-clear', suspected: 'status-suspect', infected: 'status-infected' };
   statusEl.className = 'sidebar-patient-status ' + (classes[state.magicResult] || 'status-none');
   statusEl.textContent = labels[state.magicResult] || '';
 
-  document.getElementById('jump-triage').style.display = '';
-  if (state.magicResult === 'infected' || state.magicResult === 'suspected') {
-    document.getElementById('jump-petct').style.display = '';
-    document.getElementById('jump-abx').style.display = '';
-  }
+  const jumpTriage = document.getElementById('jump-triage');
+  const jumpPetct = document.getElementById('jump-petct');
+  const jumpAbx = document.getElementById('jump-abx');
+  
+  if (jumpTriage) jumpTriage.style.display = '';
+  if (jumpPetct && (state.magicResult === 'infected' || state.magicResult === 'suspected')) jumpPetct.style.display = '';
+  if (jumpAbx && (state.magicResult === 'infected' || state.magicResult === 'suspected')) jumpAbx.style.display = '';
 
   if (state.abxDurationWeeks) {
-    document.getElementById('abx-tracker').style.display = '';
-    const info = document.getElementById('abx-info');
-    info.innerHTML = `Prescribed: <strong style="color:#d1d5db">${state.abxDurationWeeks} weeks</strong><br><span style="color:#6b7280">${state.abxMode === 'sat' ? 'Suppressive (lifelong)' : 'Curative course'}</span>`;
+    const abxTracker = document.getElementById('abx-tracker');
+    const abxInfo = document.getElementById('abx-info');
+    if (abxTracker) abxTracker.style.display = '';
+    if (abxInfo) abxInfo.innerHTML = `Prescribed: <strong style="color:#d1d5db">${state.abxDurationWeeks} weeks</strong><br><span style="color:#6b7280">${state.abxMode === 'sat' ? 'Suppressive (lifelong)' : 'Curative course'}</span>`;
   }
 
   // CRP trend
   if (state.crpHistory.length > 0) {
-    document.getElementById('crp-trend-container').style.display = '';
+    const crpContainer = document.getElementById('crp-trend-container');
     const barsEl = document.getElementById('crp-bars');
-    const max = Math.max(...state.crpHistory, 1);
-    barsEl.innerHTML = state.crpHistory.map(v => {
-      const h = Math.max(4, Math.round((v / max) * 32));
-      const cls = v > 100 ? 'high' : v > 20 ? 'mid' : 'low';
-      return `<div class="crp-bar ${cls}" style="height:${h}px" title="${v} mg/L"></div>`;
-    }).join('');
+    if (crpContainer) crpContainer.style.display = '';
+    if (barsEl) {
+      const max = Math.max(...state.crpHistory, 1);
+      barsEl.innerHTML = state.crpHistory.map(v => {
+        const h = Math.max(4, Math.round((v / max) * 32));
+        const cls = v > 100 ? 'high' : v > 20 ? 'mid' : 'low';
+        return `<div class="crp-bar ${cls}" style="height:${h}px" title="${v} mg/L"></div>`;
+      }).join('');
+    }
   }
 
   // Sidebar timeline entries
   const tlEl = document.getElementById('sidebar-timeline');
-  tlEl.innerHTML = buildSidebarTimeline();
+  if (tlEl) tlEl.innerHTML = buildSidebarTimeline();
 }
 
 function buildSidebarTimeline() {
@@ -1353,46 +1396,57 @@ function buildSidebarTimeline() {
 // ═══════════════════════════════════════════════════
 function setMagicResult(val) {
   state.magicResult = val;
-  document.getElementById('crp-block').classList.remove('hidden');
-  document.getElementById('wbc-block').classList.remove('hidden');
-  document.getElementById('m0-nav').classList.remove('hidden');
+  const crpBlock = document.getElementById('crp-block');
+  const wbcBlock = document.getElementById('wbc-block');
+  const m0Nav = document.getElementById('m0-nav');
+  if (crpBlock) crpBlock.classList.remove('hidden');
+  if (wbcBlock) wbcBlock.classList.remove('hidden');
+  if (m0Nav) m0Nav.classList.remove('hidden');
   updateSidebar();
 }
 
 function updateCRPDisplay() {
-  const v = parseFloat(document.getElementById('crp-value').value);
+  const input = document.getElementById('crp-value');
+  if (!input) return;
+  const v = parseFloat(input.value);
   if (isNaN(v)) return;
   state.crp = v;
   if (!state.crpHistory.includes(v)) state.crpHistory.push(v);
   const el = document.getElementById('crp-interpretation');
-  if (v < 2) {
-    el.innerHTML = '<span style="color:var(--green)">✓ CRP normal (&lt;2 mg/L). This is the only presentation finding that reliably excludes eventual VGEI diagnosis.</span>';
-  } else if (v < 5) {
-    el.innerHTML = '<span style="color:var(--amber)">⚠ CRP mildly elevated (2–5 mg/L). Sensitivity for VGEI 100% at this threshold. Cannot exclude infection.</span>';
-  } else if (v < 10) {
-    el.innerHTML = '<span style="color:var(--amber)">⚠ CRP elevated (5–10 mg/L). Sensitivity 97%. Cannot exclude VGEI.</span>';
-  } else {
-    el.innerHTML = '<span style="color:var(--red)">● CRP significantly elevated (&gt;10 mg/L). Sensitivity 96%. Strongly consistent with VGEI when combined with other criteria.</span>';
+  if (el) {
+    if (v < 2) {
+      el.innerHTML = '<span style="color:var(--green)">✓ CRP normal (&lt;2 mg/L). This is the only presentation finding that reliably excludes eventual VGEI diagnosis.</span>';
+    } else if (v < 5) {
+      el.innerHTML = '<span style="color:var(--amber)">⚠ CRP mildly elevated (2–5 mg/L). Sensitivity for VGEI 100% at this threshold. Cannot exclude infection.</span>';
+    } else if (v < 10) {
+      el.innerHTML = '<span style="color:var(--amber)">⚠ CRP elevated (5–10 mg/L). Sensitivity 97%. Cannot exclude VGEI.</span>';
+    } else {
+      el.innerHTML = '<span style="color:var(--red)">● CRP significantly elevated (&gt;10 mg/L). Sensitivity 96%. Strongly consistent with VGEI when combined with other criteria.</span>';
+    }
   }
   updateSidebar();
 }
 
 function updateWBCDisplay() {
-  const v = parseFloat(document.getElementById('wbc-value').value);
+  const input = document.getElementById('wbc-value');
+  if (!input) return;
+  const v = parseFloat(input.value);
   if (isNaN(v)) return;
   state.wbc = v;
   const el = document.getElementById('wbc-interpretation');
-  if (v >= 11) {
-    el.innerHTML = '<span style="color:var(--amber)">WBC elevated (≥11×10⁹/L) — minor MAGIC laboratory criterion. Note: sensitivity only 51%, so normal WBC does not exclude VGEI.</span>';
-  } else {
-    el.innerHTML = '<span style="color:var(--ink3)">WBC normal (&lt;11×10⁹/L). Important: this does NOT exclude VGEI. WBC sensitivity was only 51% in the MAGIC cohort.</span>';
+  if (el) {
+    if (v >= 11) {
+      el.innerHTML = '<span style="color:var(--amber)">WBC elevated (≥11×10⁹/L) — minor MAGIC laboratory criterion. Note: sensitivity only 51%, so normal WBC does not exclude VGEI.</span>';
+    } else {
+      el.innerHTML = '<span style="color:var(--ink3)">WBC normal (&lt;11×10⁹/L). Important: this does NOT exclude VGEI. WBC sensitivity was only 51% in the MAGIC cohort.</span>';
+    }
   }
 }
 
 function proceedFromM0() {
   if (!state.magicResult) return;
   if (state.magicResult === 'not_infected' && state.crp !== null && state.crp < 2) {
-    goTo('not_infected_result');
+    showNotification("Not infected - routine surveillance recommended");
     return;
   }
   // Elevated CRP with "not infected" = treat as suspected pathway
@@ -1401,11 +1455,6 @@ function proceedFromM0() {
     showNotification('CRP elevated — reclassifying to Suspected pathway for investigation. Discuss with MDT.');
   }
   goTo('m1');
-}
-
-// Inline "not infected" result — show inline
-function showNotInfectedResult() {
-  goTo('welcome');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1421,6 +1470,7 @@ const triageQs = [
 
 function initTriage() {
   const container = document.getElementById('triage-questions');
+  if (!container) return;
   container.innerHTML = '';
   state.triageAnswers = {};
   triageQs.forEach((q, i) => {
@@ -1439,16 +1489,21 @@ function initTriage() {
     `;
     container.appendChild(div);
   });
-  document.getElementById('triage-result').classList.add('hidden');
+  const triageResult = document.getElementById('triage-result');
+  if (triageResult) triageResult.classList.add('hidden');
 }
 
 function answerTriage(id, val, btn) {
   state.triageAnswers[id] = val;
   const block = document.getElementById('tq-' + id);
-  block.classList.remove('answered', 'answered-yes', 'answered-no');
-  block.classList.add(val ? 'answered-yes' : 'answered-no');
-  btn.parentElement.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
+  if (block) {
+    block.classList.remove('answered', 'answered-yes', 'answered-no');
+    block.classList.add(val ? 'answered-yes' : 'answered-no');
+  }
+  if (btn && btn.parentElement) {
+    btn.parentElement.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
 
   const allAnswered = triageQs.every(q => state.triageAnswers[q.id] !== undefined);
   if (allAnswered) showTriageResult();
@@ -1459,62 +1514,68 @@ function showTriageResult() {
   const resultEl = document.getElementById('triage-result');
   const outputEl = document.getElementById('triage-output');
   const nextBtn = document.getElementById('triage-next-btn');
-  resultEl.classList.remove('hidden');
+  if (resultEl) resultEl.classList.remove('hidden');
 
-  if (anyYes) {
-    const triggers = triageQs.filter(q => state.triageAnswers[q.id]).map(q => q.text);
-    outputEl.innerHTML = `
-      <div class="output-section">
-        <h3>Triage outcome</h3>
-        <div class="output-line">
-          <div class="output-key">Pathway</div>
-          <div class="output-val danger">Emergency — unstable</div>
-        </div>
-        <div class="output-line">
-          <div class="output-key">Triggered by</div>
-          <div class="output-val" style="color:#fca5a5;font-size:13px">${triggers.join('<br>')}</div>
-        </div>
-        <div class="output-line">
-          <div class="output-key">Actions</div>
-          <div class="output-val" style="font-size:13px;color:#d1d5db">
-            1. Start empiric antibiotics now (see empiric guide below)<br>
-            2. Urgent operative review + MDT activation<br>
-            3. Consider bridge endovascular control if anatomy allows<br>
-            4. Obtain blood cultures before antibiotics if &lt;5 minutes delay
+  if (outputEl) {
+    if (anyYes) {
+      const triggers = triageQs.filter(q => state.triageAnswers[q.id]).map(q => q.text);
+      outputEl.innerHTML = `
+        <div class="output-section">
+          <h3>Triage outcome</h3>
+          <div class="output-line">
+            <div class="output-key">Pathway</div>
+            <div class="output-val danger">Emergency — unstable</div>
           </div>
+          <div class="output-line">
+            <div class="output-key">Triggered by</div>
+            <div class="output-val" style="color:#fca5a5;font-size:13px">${triggers.join('<br>')}</div>
+          </div>
+          <div class="output-line">
+            <div class="output-key">Actions</div>
+            <div class="output-val" style="font-size:13px;color:#d1d5db">
+              1. Start empiric antibiotics now (see empiric guide below)<br>
+              2. Urgent operative review + MDT activation<br>
+              3. Consider bridge endovascular control if anatomy allows<br>
+              4. Obtain blood cultures before antibiotics if &lt;5 minutes delay
+            </div>
+          </div>
+          ${state.triageAnswers.q2 ? `<div class="output-line">
+            <div class="output-key">Fistula note</div>
+            <div class="output-val danger" style="font-size:12px">Aorto-enteric/bronchial fistula: add fungal + anaerobic cover. Broad-spectrum essential.</div>
+          </div>` : ''}
         </div>
-        ${state.triageAnswers.q2 ? `<div class="output-line">
-          <div class="output-key">Fistula note</div>
-          <div class="output-val danger" style="font-size:12px">Aorto-enteric/bronchial fistula: add fungal + anaerobic cover. Broad-spectrum essential.</div>
-        </div>` : ''}
-      </div>
-      <div class="result-card mt-4">
-        <div class="result-card-title">Empiric antibiotic guide</div>
-        <div class="alert alert-red"><strong>Abdominal VGEI:</strong> Piperacillin-tazobactam ± vancomycin (if MRSA risk). Cover gram-positives + gram-negatives + anaerobes. <span class="ref-tag">[3] Delphi Q4</span></div>
-        <div class="alert alert-amber"><strong>Thoracic VGEI:</strong> Gram-positive cover prioritised (vancomycin or flucloxacillin based on MRSA risk). <span class="ref-tag">[3] Delphi Q5</span></div>
-        <div style="font-size:12px;color:var(--ink3)">These are class-level suggestions only. Consult infectious diseases. De-escalate once cultures available.</div>
-      </div>`;
-    nextBtn.textContent = 'Continue to surgical planning →';
-    nextBtn.onclick = () => goTo('m2');
-  } else {
-    outputEl.innerHTML = `
-      <div class="output-section">
-        <h3>Triage outcome</h3>
-        <div class="output-line">
-          <div class="output-key">Pathway</div>
-          <div class="output-val success">Stable — elective pathway</div>
-        </div>
-        <div class="output-line">
-          <div class="output-key">Next step</div>
-          <div class="output-val" style="color:#d1d5db;font-size:13px">MDT review. Obtain cultures before starting antibiotics. Proceed to surgical and microbiological assessment.</div>
-        </div>
-        <div class="output-line">
-          <div class="output-key">Antibiotic hold</div>
-          <div class="output-val highlight">Hold empiric antibiotics until cultures obtained <span style="color:#6b7280;font-size:12px">[3] Delphi Q1</span></div>
-        </div>
-      </div>`;
-    nextBtn.textContent = 'Continue to stable pathway →';
-    nextBtn.onclick = () => goTo('m2');
+        <div class="result-card mt-4">
+          <div class="result-card-title">Empiric antibiotic guide</div>
+          <div class="alert alert-red"><strong>Abdominal VGEI:</strong> Piperacillin-tazobactam ± vancomycin (if MRSA risk). Cover gram-positives + gram-negatives + anaerobes. <span class="ref-tag">[3] Delphi Q4</span></div>
+          <div class="alert alert-amber"><strong>Thoracic VGEI:</strong> Gram-positive cover prioritised (vancomycin or flucloxacillin based on MRSA risk). <span class="ref-tag">[3] Delphi Q5</span></div>
+          <div style="font-size:12px;color:var(--ink3)">These are class-level suggestions only. Consult infectious diseases. De-escalate once cultures available.</div>
+        </div>`;
+      if (nextBtn) {
+        nextBtn.textContent = 'Continue to surgical planning →';
+        nextBtn.onclick = () => goTo('m2');
+      }
+    } else {
+      outputEl.innerHTML = `
+        <div class="output-section">
+          <h3>Triage outcome</h3>
+          <div class="output-line">
+            <div class="output-key">Pathway</div>
+            <div class="output-val success">Stable — elective pathway</div>
+          </div>
+          <div class="output-line">
+            <div class="output-key">Next step</div>
+            <div class="output-val" style="color:#d1d5db;font-size:13px">MDT review. Obtain cultures before starting antibiotics. Proceed to surgical and microbiological assessment.</div>
+          </div>
+          <div class="output-line">
+            <div class="output-key">Antibiotic hold</div>
+            <div class="output-val highlight">Hold empiric antibiotics until cultures obtained <span style="color:#6b7280;font-size:12px">[3] Delphi Q1</span></div>
+          </div>
+        </div>`;
+      if (nextBtn) {
+        nextBtn.textContent = 'Continue to stable pathway →';
+        nextBtn.onclick = () => goTo('m2');
+      }
+    }
   }
 }
 
@@ -1584,6 +1645,7 @@ const stableQs = [
 
 function initStable() {
   const container = document.getElementById('stable-questions');
+  if (!container) return;
   container.innerHTML = '';
   stableQs.forEach((q) => {
     const div = document.createElement('div');
@@ -1627,34 +1689,43 @@ function answerStable(id, val) {
   // Show surgical guidance inline
   if (id === 'fitSurgery') {
     const block = document.getElementById('sq-fitSurgery');
-    const existing = block.querySelector('.surgical-guidance');
-    if (existing) existing.remove();
-    const g = document.createElement('div');
-    g.className = 'surgical-guidance mt-4';
-    if (val === true) {
-      g.innerHTML = `<div class="alert alert-blue"><strong>Surgery-first pathway</strong> — Open surgical repair / graft explantation is preferred. Classify reconstruction material to determine antibiotic duration. <span class="ref-tag">[3] Delphi Q6</span></div>`;
-    } else {
-      g.innerHTML = `<div class="alert alert-amber"><strong>Conservative / medical-only pathway</strong> — Consider medical management alone if: low-virulence organism, favourable imaging, no fistula, no uncontrolled sepsis. MDT review mandatory. <span class="ref-tag">[3] Delphi Table 3 Q8 — 91% consensus for long-term suppressive therapy when no surgery</span></div>`;
+    if (block) {
+      const existing = block.querySelector('.surgical-guidance');
+      if (existing) existing.remove();
+      const g = document.createElement('div');
+      g.className = 'surgical-guidance mt-4';
+      if (val === true) {
+        g.innerHTML = `<div class="alert alert-blue"><strong>Surgery-first pathway</strong> — Open surgical repair / graft explantation is preferred. Classify reconstruction material to determine antibiotic duration. <span class="ref-tag">[3] Delphi Q6</span></div>`;
+      } else {
+        g.innerHTML = `<div class="alert alert-amber"><strong>Conservative / medical-only pathway</strong> — Consider medical management alone if: low-virulence organism, favourable imaging, no fistula, no uncontrolled sepsis. MDT review mandatory. <span class="ref-tag">[3] Delphi Table 3 Q8 — 91% consensus for long-term suppressive therapy when no surgery</span></div>`;
+      }
+      block.appendChild(g);
     }
-    block.appendChild(g);
   }
 
   const allAnswered = stableQs.every(q => state.stableAnswers[q.id] !== undefined);
-  document.getElementById('stable-nav').classList.toggle('hidden', !allAnswered);
+  const stableNav = document.getElementById('stable-nav');
+  if (stableNav) stableNav.classList.toggle('hidden', !allAnswered);
 }
 
 // ═══════════════════════════════════════════════════
 // MODULE 3 — ANTIBIOTIC DURATION
 // ═══════════════════════════════════════════════════
 function initABX() {
-  document.getElementById('abx-cultures-pending').classList.add('hidden');
-  document.getElementById('abx-empiric-guide').classList.add('hidden');
-  document.getElementById('abx-duration-output').classList.add('hidden');
-  document.getElementById('rifampicin-block').classList.add('hidden');
-  document.getElementById('crp-prolongation-check').classList.add('hidden');
+  const pendingDiv = document.getElementById('abx-cultures-pending');
+  const empiricDiv = document.getElementById('abx-empiric-guide');
+  const durationDiv = document.getElementById('abx-duration-output');
+  const rifampicinDiv = document.getElementById('rifampicin-block');
+  const crpCheckDiv = document.getElementById('crp-prolongation-check');
+  
+  if (pendingDiv) pendingDiv.classList.add('hidden');
+  if (empiricDiv) empiricDiv.classList.add('hidden');
+  if (durationDiv) durationDiv.classList.add('hidden');
+  if (rifampicinDiv) rifampicinDiv.classList.add('hidden');
+  if (crpCheckDiv) crpCheckDiv.classList.add('hidden');
 
   if (state.organism === 'unknown' || state.culturesPending) {
-    document.getElementById('abx-cultures-pending').classList.remove('hidden');
+    if (pendingDiv) pendingDiv.classList.remove('hidden');
     return;
   }
   computeABXDuration();
@@ -1662,7 +1733,8 @@ function initABX() {
 
 function culturesNowAvailable() {
   state.culturesPending = false;
-  document.getElementById('abx-cultures-pending').classList.add('hidden');
+  const pendingDiv = document.getElementById('abx-cultures-pending');
+  if (pendingDiv) pendingDiv.classList.add('hidden');
   // Re-ask organism
   const sel = document.createElement('div');
   sel.innerHTML = `
@@ -1681,7 +1753,8 @@ function culturesNowAvailable() {
         <option value="low_virulence">Other low-virulence</option>
       </select>
     </div>`;
-  document.getElementById('abx-cultures-pending').after(sel);
+  const pendingDivRef = document.getElementById('abx-cultures-pending');
+  if (pendingDivRef) pendingDivRef.after(sel);
 }
 
 function setOrganismAndCompute(val) {
@@ -1690,11 +1763,13 @@ function setOrganismAndCompute(val) {
 }
 
 function showEmpircOverride() {
-  document.getElementById('abx-empiric-guide').classList.remove('hidden');
+  const empiricDiv = document.getElementById('abx-empiric-guide');
+  if (empiricDiv) empiricDiv.classList.remove('hidden');
 }
 
 function computeABXDuration() {
-  document.getElementById('abx-duration-output').classList.remove('hidden');
+  const durationDiv = document.getElementById('abx-duration-output');
+  if (durationDiv) durationDiv.classList.remove('hidden');
 
   let weeks, label, phases = [], lines = [], barPct = 0;
   const isHighRisk = ['mrsa','mdr','candida','ntm'].includes(state.organism);
@@ -1722,7 +1797,10 @@ function computeABXDuration() {
       { k:'IV phase', v:'4–6 weeks intravenous', cls:'' },
       { k:'Oral phase', v:'Oral to complete 6 months total', cls:'' },
     ];
-    if (isStaph) document.getElementById('rifampicin-block').classList.remove('hidden');
+    if (isStaph) {
+      const rifBlock = document.getElementById('rifampicin-block');
+      if (rifBlock) rifBlock.classList.remove('hidden');
+    }
   } else if (completeAutoVein) {
     weeks = 6; label = '6 weeks'; barPct = 30;
     state.abxDurationWeeks = 6; state.abxMode = 'curative';
@@ -1733,7 +1811,10 @@ function computeABXDuration() {
       { k:'IV phase', v:'1–2 weeks (early oral switch if highly bioavailable antibiotic available)', cls:'' },
       { k:'Oral phase', v:'Complete 6 weeks with oral therapy', cls:'' },
     ];
-    if (isStaph) document.getElementById('rifampicin-block').classList.remove('hidden');
+    if (isStaph) {
+      const rifBlock = document.getElementById('rifampicin-block');
+      if (rifBlock) rifBlock.classList.remove('hidden');
+    }
   } else if (prostheticRemains || state.graftRemoval === 'complete') {
     weeks = 12; label = '12 weeks'; barPct = 55;
     state.abxDurationWeeks = 12; state.abxMode = 'curative';
@@ -1744,8 +1825,12 @@ function computeABXDuration() {
       { k:'IV phase', v:'4–6 weeks intravenous', cls:'' },
       { k:'Oral phase', v:'Oral to complete 12 weeks total', cls:'' },
     ];
-    if (isStaph) document.getElementById('rifampicin-block').classList.remove('hidden');
-    document.getElementById('crp-prolongation-check').classList.remove('hidden');
+    if (isStaph) {
+      const rifBlock = document.getElementById('rifampicin-block');
+      if (rifBlock) rifBlock.classList.remove('hidden');
+    }
+    const crpCheck = document.getElementById('crp-prolongation-check');
+    if (crpCheck) crpCheck.classList.remove('hidden');
   } else {
     weeks = 12; label = '12 weeks (default)'; barPct = 55;
     state.abxDurationWeeks = 12; state.abxMode = 'curative';
@@ -1753,22 +1838,24 @@ function computeABXDuration() {
     phases = [{ text:'IV (4–6w)', cls:'' },{ text:'Oral to 12 weeks', cls:'active-phase' }];
   }
 
-  document.getElementById('abx-weeks-display').textContent = typeof weeks === 'number' ? weeks : '∞';
-  document.getElementById('abx-duration-label').textContent = label;
-  document.getElementById('abx-bar').style.width = barPct + '%';
-
+  const weeksDisplay = document.getElementById('abx-weeks-display');
+  const durationLabel = document.getElementById('abx-duration-label');
+  const barFill = document.getElementById('abx-bar');
   const phasesEl = document.getElementById('abx-phases');
-  phasesEl.innerHTML = phases.map(p => `<div class="phase-chip ${p.cls}">${p.text}</div>`).join('');
-
   const linesEl = document.getElementById('abx-output-lines');
-  linesEl.innerHTML = lines.map(l =>
-    `<div class="output-line"><div class="output-key">${l.k}</div><div class="output-val ${l.cls}">${l.v}</div></div>`
-  ).join('');
+
+  if (weeksDisplay) weeksDisplay.textContent = typeof weeks === 'number' ? weeks : '∞';
+  if (durationLabel) durationLabel.textContent = label;
+  if (barFill) barFill.style.width = barPct + '%';
+  if (phasesEl) phasesEl.innerHTML = phases.map(p => `<div class="phase-chip ${p.cls}">${p.text}</div>`).join('');
+  if (linesEl) linesEl.innerHTML = lines.map(l => `<div class="output-line"><div class="output-key">${l.k}</div><div class="output-val ${l.cls}">${l.v}</div></div>`).join('');
 
   // SAT rifampicin warning
   if (state.abxMode === 'sat') {
-    document.getElementById('rifampicin-block').classList.remove('hidden');
-    document.getElementById('rifampicin-sat-warning').classList.remove('hidden');
+    const rifBlock = document.getElementById('rifampicin-block');
+    const satWarn = document.getElementById('rifampicin-sat-warning');
+    if (rifBlock) rifBlock.classList.remove('hidden');
+    if (satWarn) satWarn.classList.remove('hidden');
   }
 
   updateSidebar();
@@ -1776,11 +1863,13 @@ function computeABXDuration() {
 
 function setCRPNormalizing(val) {
   const el = document.getElementById('crp-prolongation-result');
-  el.classList.remove('hidden');
-  if (!val) {
-    el.innerHTML = `<div class="alert alert-red"><strong>⚠ Prolongation indicated</strong> — CRP not normalizing. Antimicrobial therapy should be prolonged beyond the initial ${state.abxDurationWeeks}-week estimate. Re-evaluate at each visit. Consider PET/CT to guide stop decision. <span class="ref-tag">[3] Delphi Q19</span></div>`;
-  } else {
-    el.innerHTML = `<div class="alert alert-green"><strong>✓ CRP normalizing</strong> — Continue current antibiotic course as planned. Re-evaluate CRP at each follow-up visit.</div>`;
+  if (el) {
+    el.classList.remove('hidden');
+    if (!val) {
+      el.innerHTML = `<div class="alert alert-red"><strong>⚠ Prolongation indicated</strong> — CRP not normalizing. Antimicrobial therapy should be prolonged beyond the initial ${state.abxDurationWeeks}-week estimate. Re-evaluate at each visit. Consider PET/CT to guide stop decision. <span class="ref-tag">[3] Delphi Q19</span></div>`;
+    } else {
+      el.innerHTML = `<div class="alert alert-green"><strong>✓ CRP normalizing</strong> — Continue current antibiotic course as planned. Re-evaluate CRP at each follow-up visit.</div>`;
+    }
   }
 }
 
@@ -1788,18 +1877,22 @@ function setCRPNormalizing(val) {
 // MODULE 4 — PET/CT ENGINE
 // ═══════════════════════════════════════════════════
 function checkPETCTTiming() {
-  const months = parseFloat(document.getElementById('petct-months').value);
+  const input = document.getElementById('petct-months');
+  if (!input) return;
+  const months = parseFloat(input.value);
   const warnEl = document.getElementById('petct-timing-warn');
   if (!isNaN(months) && months < 3) {
-    warnEl.classList.remove('hidden');
+    if (warnEl) warnEl.classList.remove('hidden');
   } else {
-    warnEl.classList.add('hidden');
+    if (warnEl) warnEl.classList.add('hidden');
   }
   updatePETCTOutput();
 }
 
 function updatePETCTMaterialNote() {
-  const mat = document.getElementById('petct-material').value;
+  const mat = document.getElementById('petct-material');
+  if (!mat) return;
+  const val = mat.value;
   const notes = {
     ptfe: '✓ PTFE: focal uptake is specific for true infection. Diffuse uptake in PTFE = likely foreign body reaction only.',
     polyester: '⚠ Polyester/Dacron: inhomogeneous uptake frequent even in non-infected grafts. Requires skilled MDT interpretation.',
@@ -1807,31 +1900,43 @@ function updatePETCTMaterialNote() {
     biological: '— Biological grafts: limited specific data. Interpret with clinical context.',
     unknown: '— Material unknown: interpret PET/CT with caution.'
   };
-  document.getElementById('petct-material-note').textContent = notes[mat] || '';
+  const noteEl = document.getElementById('petct-material-note');
+  if (noteEl) noteEl.textContent = notes[val] || '';
 }
 
 function setPETCTSigns(val) {
   state.petctSigns = val;
-  document.getElementById('petct-signs-yes').classList.toggle('selected', val === true);
-  document.getElementById('petct-signs-no').classList.toggle('selected', val === false);
+  const yesBtn = document.getElementById('petct-signs-yes');
+  const noBtn = document.getElementById('petct-signs-no');
+  if (yesBtn) yesBtn.classList.toggle('selected', val === true);
+  if (noBtn) noBtn.classList.toggle('selected', val === false);
   updatePETCTOutput();
 }
 
 function updatePETCTOutput() {
-  const suv = parseFloat(document.getElementById('petct-suv').value);
-  const crp = parseFloat(document.getElementById('petct-crp').value);
-  const pattern = document.getElementById('petct-pattern').value;
-  const months = parseFloat(document.getElementById('petct-months').value);
+  const suvInput = document.getElementById('petct-suv');
+  const crpInput = document.getElementById('petct-crp');
+  const patternSelect = document.getElementById('petct-pattern');
+  const monthsInput = document.getElementById('petct-months');
+  
+  if (!suvInput || !crpInput || !patternSelect) return;
+  
+  const suv = parseFloat(suvInput.value);
+  const crp = parseFloat(crpInput.value);
+  const pattern = patternSelect.value;
+  const months = monthsInput ? parseFloat(monthsInput.value) : NaN;
 
   if (isNaN(suv) || isNaN(crp) || !pattern) return;
 
   if (state.crp !== null && !state.crpHistory.includes(crp)) state.crpHistory.push(crp);
 
-  document.getElementById('petct-output').classList.remove('hidden');
+  const petctOutput = document.getElementById('petct-output');
+  if (petctOutput) petctOutput.classList.remove('hidden');
 
   // Reset zones
   ['pz-stop','pz-cont','pz-esc'].forEach(id => {
-    document.getElementById(id).className = 'petct-zone';
+    const zone = document.getElementById(id);
+    if (zone) zone.className = 'petct-zone';
   });
 
   // Scoring
@@ -1848,9 +1953,9 @@ function updatePETCTOutput() {
   else                  escScore += 2;
 
   // Pattern
-  if (pattern === 'none' || pattern === 'diffuse'){stopScore += 2;}
-  else if (pattern === 'focal_mild'){contScore += 2;}
-  else if (pattern === 'focal')                           contScore += 1; escScore += 1;
+  if (pattern === 'none' || pattern === 'diffuse')       stopScore += 2;
+  else if (pattern === 'focal_mild')                      contScore += 2;
+  else if (pattern === 'focal')                           contScore += 1, escScore += 1;
   else if (pattern === 'focal_abscess')                   escScore += 3;
 
   // Clinical signs
@@ -1863,22 +1968,28 @@ function updatePETCTOutput() {
   const max = Math.max(stopScore, contScore, escScore);
   let recommendation = '';
 
+  const recDiv = document.getElementById('petct-recommendation');
+  if (!recDiv) return;
+
   if (max === stopScore && stopScore > contScore && stopScore > escScore) {
-    document.getElementById('pz-stop').classList.add('active-stop');
+    const stopZone = document.getElementById('pz-stop');
+    if (stopZone) stopZone.classList.add('active-stop');
     recommendation = `
       <div class="output-line"><div class="output-key">Recommendation</div><div class="output-val success">Stop-supportive</div></div>
       <div class="output-line"><div class="output-key">Your values</div><div class="output-val" style="font-size:13px">SUVmax ${suv.toFixed(1)} / CRP ${crp.toFixed(1)} mg/L / ${pattern.replace('_',' ')}</div></div>
       <div class="output-line"><div class="output-key">Reference thresholds</div><div class="output-val" style="font-size:12px;color:#9ca3af">Stop decisions: median SUVmax 4.3, CRP 3.5 mg/L, 61% focal uptake [2]</div></div>
       <div class="output-line"><div class="output-key">MDT sign-off</div><div class="output-val danger">Required before stopping therapy</div></div>`;
   } else if (max === escScore && escScore >= contScore) {
-    document.getElementById('pz-esc').classList.add('active-escalate');
+    const escZone = document.getElementById('pz-esc');
+    if (escZone) escZone.classList.add('active-escalate');
     recommendation = `
       <div class="output-line"><div class="output-key">Recommendation</div><div class="output-val danger">Escalate-supportive</div></div>
       <div class="output-line"><div class="output-key">Your values</div><div class="output-val" style="font-size:13px">SUVmax ${suv.toFixed(1)} / CRP ${crp.toFixed(1)} mg/L / ${pattern.replace('_',' ')}</div></div>
       <div class="output-line"><div class="output-key">Reference thresholds</div><div class="output-val" style="font-size:12px;color:#9ca3af">Escalate decisions: median SUVmax 9.5, CRP 31.5 mg/L, 100% focal [2]</div></div>
       <div class="output-line"><div class="output-key">Action</div><div class="output-val danger">Consider IV switch / surgical review. MDT activation.</div></div>`;
   } else {
-    document.getElementById('pz-cont').classList.add('active-cont');
+    const contZone = document.getElementById('pz-cont');
+    if (contZone) contZone.classList.add('active-cont');
     recommendation = `
       <div class="output-line"><div class="output-key">Recommendation</div><div class="output-val highlight">Continue-supportive</div></div>
       <div class="output-line"><div class="output-key">Your values</div><div class="output-val" style="font-size:13px">SUVmax ${suv.toFixed(1)} / CRP ${crp.toFixed(1)} mg/L / ${pattern.replace('_',' ')}</div></div>
@@ -1886,7 +1997,7 @@ function updatePETCTOutput() {
       <div class="output-line"><div class="output-key">Note</div><div class="output-val" style="font-size:12px;color:#9ca3af">CRP was normal in 35.7% of continue decisions — PET/CT adds independent information [2]</div></div>`;
   }
 
-  document.getElementById('petct-recommendation').innerHTML = `<div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:12px">${recommendation}</div>`;
+  recDiv.innerHTML = `<div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:12px">${recommendation}</div>`;
   updateSidebar();
 }
 
@@ -1896,7 +2007,7 @@ function updatePETCTOutput() {
 function setTodayDates() {
   const today = new Date().toISOString().split('T')[0];
   const assmtEl = document.getElementById('date-assessment');
-  if (!assmtEl.value) assmtEl.value = today;
+  if (assmtEl && !assmtEl.value) assmtEl.value = today;
 }
 
 function addMonths(dateStr, months) {
@@ -1921,7 +2032,9 @@ function daysDiff(d) {
 }
 
 function buildTimeline() {
-  const assessDate = document.getElementById('date-assessment').value;
+  const assessDateInput = document.getElementById('date-assessment');
+  if (!assessDateInput) return;
+  const assessDate = assessDateInput.value;
   if (!assessDate) return;
 
   const isSuspected = state.magicResult === 'suspected';
@@ -1931,11 +2044,13 @@ function buildTimeline() {
   const outEl = document.getElementById('timeline-output');
 
   if (!state.magicResult) {
-    warnEl.innerHTML = '<div class="alert alert-amber">Complete the diagnostic input (Module 0) first to generate a personalised follow-up schedule.</div>';
-    warnEl.classList.remove('hidden');
+    if (warnEl) {
+      warnEl.innerHTML = '<div class="alert alert-amber">Complete the diagnostic input (Module 0) first to generate a personalised follow-up schedule.</div>';
+      warnEl.classList.remove('hidden');
+    }
     return;
   }
-  warnEl.classList.add('hidden');
+  if (warnEl) warnEl.classList.add('hidden');
 
   let entries = [];
 
@@ -2100,7 +2215,7 @@ function buildTimeline() {
   entries.forEach((e, i) => {
     const days = daysDiff(e.date);
     const isLast = i === entries.length - 1;
-    const dateLabel = fmtDate(e.date) + (days > 0 ? ` <span style="color:var(--ink4);font-size:11px">(in ${days} days)</span>` : days < 0 ? ` <span style="color:var(--ink4);font-size:11px">(${Math.abs(days)} days ago)</span>` : ' <span style="color:var(--green-md);font-size:11px">(today)</span>'  );
+    const dateLabel = fmtDate(e.date) + (days > 0 ? ` <span style="color:var(--ink4);font-size:11px">(in ${days} days)</span>` : days < 0 ? ` <span style="color:var(--ink4);font-size:11px">(${Math.abs(days)} days ago)</span>` : ' <span style="color:var(--green-md);font-size:11px">(today)</span>' );
 
     html += `
       <div class="timeline-entry">
@@ -2130,7 +2245,7 @@ function buildTimeline() {
       <span class="ref-tag">[1] Lyons et al. 2026</span>
     </div>` : '';
 
-  outEl.innerHTML = suspectedNote + html;
+  if (outEl) outEl.innerHTML = suspectedNote + html;
 
   // Also update sidebar
   updateSidebar();
@@ -2141,7 +2256,7 @@ function buildTimeline() {
 // ═══════════════════════════════════════════════════
 function showAbout() {
   const p = document.getElementById('about-panel');
-  p.classList.toggle('hidden');
+  if (p) p.classList.toggle('hidden');
 }
 
 function showNotification(msg) {
