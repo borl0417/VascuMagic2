@@ -1330,23 +1330,32 @@ function initSurgical() {
     div.className = 'question-block';
     let inputHtml = '';
     if (q.type === 'yesno') {
-      inputHtml = `<div class="btn-group"><button class="btn btn-primary" onclick="answerSurgical('${q.id}', true)">Yes, fit for surgery</button><button class="btn btn-outline" onclick="answerSurgical('${q.id}', false)">No, conservative</button></div>`;
-    } else {
-      const opts = q.options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-      inputHtml = `<select id="sel-${q.id}" onchange="answerSurgical('${q.id}', this.value)">${opts}</select>`;
-    }
+  inputHtml = `<div class="btn-group">
+    <button class="btn btn-primary" onclick="answerSurgical('${q.id}', true, this)">Yes, fit for surgery</button>
+    <button class="btn btn-outline" onclick="answerSurgical('${q.id}', false, this)">No, conservative</button>
+  </div>`;
+} else {
+  const opts = q.options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+  inputHtml = `<select id="sel-${q.id}" onchange="answerSurgical('${q.id}', this.value)"><option value="">Select</option>${opts}</select>`;
+}
     div.innerHTML = `<div class="question-label">${q.label}</div><div class="question-text">${q.text}</div>${inputHtml}`;
     container.appendChild(div);
   });
 }
 
-function answerSurgical(id, val) {
+function answerSurgical(id, val, btn) {
   state.surgicalAnswers[id] = val;
   if (id === 'fitSurgery') state.fitForSurgery = val;
   if (id === 'organism') state.organism = val;
   if (id === 'graftRemoval') state.graftRemoval = val;
   if (id === 'reconstructMaterial') state.reconstructMaterial = val;
   if (id === 'organism' && val === 'unknown') state.culturesPending = true;
+  
+  // FIX: Visual feedback for yes/no buttons
+  if (btn && btn.parentElement) {
+    btn.parentElement.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
   
   const allAnswered = surgicalQuestions.every(q => state.surgicalAnswers[q.id] !== undefined);
   document.getElementById('surgical-nav').classList.toggle('hidden', !allAnswered);
